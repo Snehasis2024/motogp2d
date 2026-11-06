@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MotoGP™ Grand Prix Championship</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Teko & Chakra Petch for authentic MotoGP Broadcast Telemetry typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --motogp-red: #e10600;
+            --motogp-dark: #0b0d13;
+            --motogp-panel: rgba(12, 15, 24, 0.86);
+        }
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #07090e;
+            font-family: 'Chakra Petch', sans-serif;
+            color: #ffffff;
+        }
+        .font-teko {
+            font-family: 'Teko', sans-serif;
+        }
+        /* Broadcast skewed telemetry boxes */
+        .motogp-skew {
+            transform: skewX(-12deg);
+        }
+        .motogp-unskew {
+            transform: skewX(12deg);
+        }
+        /* Carbon fiber background texture */
+        .carbon-bg {
+            background: 
+                linear-gradient(27deg, #11141d 5px, transparent 5px) 0 5px,
+                linear-gradient(207deg, #11141d 5px, transparent 5px) 10px 0px,
+                linear-gradient(27deg, #181c29 5px, transparent 5px) 0px 10px,
+                linear-gradient(207deg, #181c29 5px, transparent 5px) 10px 5px,
+                linear-gradient(90deg, #0d1017 10px, transparent 10px),
+                linear-gradient(#131722 25%, #0f121a 25%, #0f121a 50%, transparent 50%, transparent 75%, #191e2b 75%, #191e2b);
+            background-color: #090b10;
+            background-size: 20px 20px;
+        }
+        /* Custom animations */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(225, 6, 0, 0.6); }
+            50% { box-shadow: 0 0 28px rgba(255, 50, 30, 0.95); }
+        }
+        .btn-glow {
+            animation: pulseGlow 2s infinite;
+        }
+        @keyframes shiftFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.25; }
+        }
+        .shift-flash {
+            animation: shiftFlash 0.12s infinite;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        /* Touch button styling */
+        .touch-btn {
+            background: rgba(15, 20, 32, 0.65);
+            backdrop-filter: blur(6px);
+            border: 2px solid rgba(255, 255, 255, 0.22);
+            transition: transform 0.08s ease, background 0.1s ease, border-color 0.1s ease;
+        }
+        .touch-btn:active, .touch-btn.active {
+            transform: scale(0.93);
+            background: rgba(225, 6, 0, 0.65);
+            border-color: #ffffff;
+        }
+        /* Custom Scrollbar for Modals on small screens */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(11, 13, 19, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #e10600;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full overflow-hidden select-none">
+
+    <!-- MAIN 3D RACE CANVAS -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- ==========================================
+         LIVE MOTOGP BROADCAST TELEMETRY HUD
+    =========================================== -->
+    <div id="hudOverlay" class="hidden pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-4 z-20">
+        
+        <!-- TOP BAR: Position, Lap Times, Start Lights, Minimap & Audio Controls -->
+        <div class="flex items-start justify-between w-full gap-2">
+            
+            <!-- Left Broadcast Tower: POS + Rider Tag + Lap Counter -->
+            <div class="flex flex-col gap-1.5">
+                <div class="flex items-stretch shadow-2xl">
+                    <!-- Position Block -->
+                    <div class="motogp-skew bg-red-600 px-3 sm:px-4 py-1 flex flex-col justify-center items-center border-l-4 border-white">
+                        <div class="motogp-unskew text-[10px] sm:text-xs font-bold tracking-widest uppercase text-red-100 leading-none">POS</div>
+                        <div class="motogp-unskew font-teko text-3xl sm:text-5xl font-bold leading-none text-white" id="hudPosition">1<span class="text-lg sm:text-2xl text-red-200">/8</span></div>
+                    </div>
+                    <!-- Rider & Lap Block -->
+                    <div class="motogp-skew bg-slate-950/90 backdrop-blur-md border border-slate-700/80 px-3 sm:px-5 py-1.5 flex items-center gap-3 sm:gap-5 -ml-1">
+                        <div class="motogp-unskew flex items-center gap-2">
+                            <span id="hudTeamStripe" class="w-2 h-8 sm:h-10 rounded-sm bg-red-600 inline-block"></span>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span id="hudRiderNumber" class="font-teko text-xl sm:text-2xl font-bold px-1.5 bg-white text-black rounded leading-none">63</span>
+                                    <span id="hudRiderName" class="font-bold text-xs sm:text-sm tracking-wider uppercase text-white">BAGNAIA</span>
+                                </div>
+                                <div id="hudTeamName" class="text-[10px] text-slate-400 uppercase tracking-wider">Ducati Lenovo Team</div>
+                            </div>
+                        </div>
+                        <div class="motogp-unskew h-8 w-px bg-slate-700"></div>
+                        <div class="motogp-unskew text-right">
+                            <div class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">LAP</div>
+                            <div id="hudLapCount" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none">1 / 3</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timing Telemetry Box -->
+                <div class="motogp-skew bg-slate-950/85 backdrop-blur-md border-l-4 border-red-600 border-r border-y border-slate-800 px-3 py-1.5 grid grid-cols-3 gap-2 sm:gap-4 text-xs max-w-[310px] sm:max-w-[360px] shadow-lg">
+                    <div class="motogp-unskew">
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">CURRENT</div>
+                        <div id="hudCurLap" class="font-mono font-bold text-xs sm:text-sm text-white">0:00.000</div>
+                    </div>
+                    <div class="motogp-unskew border-l border-slate-800 pl-2">
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">LAST LAP</div>
+                        <div id="hudLastLap" class="font-mono font-bold text-xs sm:text-sm text-amber-400">--:--.---</div>
+                    </div>
+                    <div class="motogp-unskew border-l border-slate-800 pl-2">
+                        <div class="text-[9px] sm:text-[10px] text-purple-400 uppercase font-semibold">BEST LAP</div>
+                        <div id="hudBestLap" class="font-mono font-bold text-xs sm:text-sm text-purple-300">--:--.---</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Race Start Red Lights / Status Notifications -->
+            <div class="flex flex-col items-center">
+                <!-- 5 Red Start Lights Gantry UI -->
+                <div id="startLightsPanel" class="bg-slate-950/95 border-2 border-slate-700 rounded-xl px-4 py-2.5 shadow-2xl flex items-center gap-2.5 sm:gap-3.5 transition-opacity duration-500">
+                    <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                    <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                    <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                    <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                    <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                </div>
+
+                <!-- Dynamic Race Banner (Fastest Lap, Overtake, Off-Track Warning, Final Lap) -->
+                <div id="raceBanner" class="mt-2 opacity-0 transition-all duration-300 transform -translate-y-2 motogp-skew bg-gradient-to-r from-red-600 via-red-500 to-amber-500 px-5 py-1 shadow-xl border border-white/30">
+                    <div id="raceBannerText" class="motogp-unskew font-teko text-xl sm:text-2xl tracking-wider uppercase font-bold text-white drop-shadow">
+                        LIGHTS OUT AND AWAY WE GO!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Track Minimap & Quick Utility Buttons -->
+            <div class="flex flex-col items-end gap-2">
+                <div class="flex items-center gap-2 pointer-events-auto">
+                    <button id="btnCameraToggle" title="Toggle Gyro Horizon Tilt (C)" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-lg transition">
+                        <i class="fa-solid fa-video text-red-500"></i>
+                        <span class="hidden sm:inline" id="camModeLabel">GYRO CAM: ON</span>
+                    </button>
+                    <button id="btnAudioToggle" title="Toggle Engine Audio (M)" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-lg transition">
+                        <i id="audioIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                        <span class="hidden sm:inline" id="audioLabel">AUDIO</span>
+                    </button>
+                    <button id="btnMenuReturn" title="Exit to Paddock" class="bg-slate-900/90 hover:bg-red-700 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 shadow-lg transition">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                    </button>
+                </div>
+
+                <!-- Live Circuit Minimap -->
+                <div class="bg-slate-950/85 backdrop-blur-md border border-slate-700/80 rounded-xl p-2 shadow-2xl flex flex-col items-center">
+                    <div class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-0.5 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span> AUTODROMO MUGELLO GP
+                    </div>
+                    <canvas id="minimapCanvas" width="130" height="95" class="w-[105px] h-[76px] sm:w-[130px] sm:h-[95px]"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM BAR: Official MotoGP Center Telemetry Cluster & Mobile Touch Controls -->
+        <div class="flex flex-col items-center w-full gap-2">
+            
+            <!-- Mobile / Tablet On-Screen Touch Controls -->
+            <div id="touchControls" class="w-full flex justify-between items-end px-1 sm:px-4 pb-1 pointer-events-auto lg:opacity-85">
+                <!-- Left Hand: Steer Left / Right -->
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <button id="btnLeft" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-white shadow-xl">
+                        <i class="fa-solid fa-chevron-left text-2xl sm:text-3xl"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase text-slate-300 mt-0.5">LEAN L</span>
+                    </button>
+                    <button id="btnRight" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-white shadow-xl">
+                        <i class="fa-solid fa-chevron-right text-2xl sm:text-3xl"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase text-slate-300 mt-0.5">LEAN R</span>
+                    </button>
+                </div>
+
+                <!-- Right Hand: Brake, Aero Boost (KERS), Throttle -->
+                <div class="flex items-end gap-2 sm:gap-3">
+                    <button id="btnBoost" class="touch-btn w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center text-cyan-300 border-cyan-500/50 shadow-xl">
+                        <i class="fa-solid fa-bolt text-lg sm:text-xl"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase mt-0.5">AERO</span>
+                    </button>
+                    <button id="btnBrake" class="touch-btn w-14 h-16 sm:w-16 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-rose-400 border-rose-500/40 shadow-xl">
+                        <i class="fa-solid fa-angles-down text-xl sm:text-2xl"></i>
+                        <span class="text-[9px] font-bold tracking-wider uppercase mt-0.5">BRAKE</span>
+                    </button>
+                    <button id="btnGas" class="touch-btn w-16 h-20 sm:w-20 sm:h-24 rounded-2xl flex flex-col items-center justify-center text-emerald-400 border-emerald-500/50 shadow-xl">
+                        <i class="fa-solid fa-gauge-high text-2xl sm:text-3xl"></i>
+                        <span class="text-[10px] font-bold tracking-wider uppercase mt-1">GAS</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Official MotoGP Broadcast Telemetry Cluster -->
+            <div class="motogp-skew bg-slate-950/92 backdrop-blur-md border-t-2 border-red-600 border-x border-b border-slate-700/80 px-4 sm:px-7 py-2 shadow-2xl flex items-center gap-4 sm:gap-7 max-w-full">
+                
+                <!-- Lean Angle Telemetry Gauge -->
+                <div class="motogp-unskew flex items-center gap-2.5">
+                    <div class="relative w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center">
+                        <canvas id="leanGaugeCanvas" width="72" height="60" class="w-full h-full"></canvas>
+                    </div>
+                    <div>
+                        <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold tracking-wider">LEAN ANGLE</div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="hudLeanDeg" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none">0°</span>
+                            <span id="hudLeanDir" class="text-[10px] font-bold text-red-400 uppercase">--</span>
+                        </div>
+                        <div class="text-[9px] text-slate-500">MAX: <span id="hudMaxLean" class="text-slate-300 font-bold">0°</span></div>
+                    </div>
+                </div>
+
+                <div class="motogp-unskew h-10 w-px bg-slate-800"></div>
+
+                <!-- Central RPM Bar, Shift Lights, Speed & Gear -->
+                <div class="motogp-unskew flex flex-col gap-1 min-w-[175px] sm:min-w-[250px]">
+                    <!-- LED Shift Lights & RPM Bar -->
+                    <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold tracking-widest">
+                        <span>RPM x1000</span>
+                        <span id="hudRpmVal" class="text-slate-300 font-mono">4,200</span>
+                    </div>
+                    <div id="rpmBarContainer" class="w-full h-3 sm:h-3.5 bg-slate-900 rounded-sm p-0.5 flex gap-0.5 border border-slate-800">
+                        <!-- 16 LED segments dynamically highlighted via JS -->
+                    </div>
+                    <!-- Speedometer + Throttle/Brake Sliders + Gear -->
+                    <div class="flex items-center justify-between mt-0.5">
+                        <div class="flex items-baseline gap-1">
+                            <span id="hudSpeed" class="font-teko text-4xl sm:text-5xl font-bold text-white leading-none tracking-tight">0</span>
+                            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">KM/H</span>
+                        </div>
+
+                        <!-- Throttle & Brake Telemetry Bars -->
+                        <div class="flex flex-col gap-1 w-16 sm:w-20">
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div id="hudThrottleBar" class="bg-emerald-500 h-full w-0 transition-all duration-75"></div>
+                            </div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div id="hudBrakeBar" class="bg-rose-500 h-full w-0 transition-all duration-75"></div>
+                            </div>
+                        </div>
+
+                        <!-- Gear Box -->
+                        <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2.5 py-0.5 rounded">
+                            <span class="text-[9px] text-slate-400 uppercase font-bold">GEAR</span>
+                            <span id="hudGear" class="font-teko text-3xl sm:text-4xl font-bold text-amber-400 leading-none">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="motogp-unskew h-10 w-px bg-slate-800 hidden sm:block"></div>
+
+                <!-- Aero Slipstream / KERS Boost Meter -->
+                <div class="motogp-unskew hidden sm:flex flex-col gap-1 w-28">
+                    <div class="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
+                        <span class="text-cyan-400"><i class="fa-solid fa-wind mr-1"></i>AERO BOOST</span>
+                        <span id="hudBoostPct" class="text-white">100%</span>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-900 border border-slate-700 rounded-sm overflow-hidden p-0.5">
+                        <div id="hudBoostBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-400 w-full transition-all duration-75"></div>
+                    </div>
+                    <div class="text-[9px] text-slate-400 truncate" id="hudSurfaceStatus">
+                        <span class="text-emerald-400">●</span> ASPHALT GRIP 100%
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         START / PADDOCK TEAM SELECTION SCREEN
+    =========================================== -->
+    <div id="startScreen" class="absolute inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+        <div class="carbon-bg border-2 border-slate-700/90 rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl my-auto relative overflow-hidden">
+            
+            <!-- Decorative Racing Stripes -->
+            <div class="absolute -top-12 -right-12 w-52 h-52 bg-red-600/20 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-white to-emerald-500"></div>
+
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="motogp-skew bg-red-600 px-3 py-1 border-l-4 border-white shadow-lg">
+                        <span class="motogp-unskew font-teko text-3xl sm:text-4xl font-bold tracking-wider text-white">MotoGP™</span>
+                    </div>
+                    <div>
+                        <h1 class="font-teko text-3xl sm:text-4xl font-bold uppercase tracking-wide text-white leading-none">GRAND PRIX CHAMPIONSHIP</h1>
+                        <p class="text-xs text-slate-400 tracking-wider uppercase">Autodromo Internazionale del Mugello • Official Telemetry Sim</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-lg self-start sm:self-auto">
+                    <i class="fa-solid fa-Headset text-red-500"></i>
+                    <span class="text-slate-300">WebAudio V4 Engine Synth Ready</span>
+                </div>
+            </div>
+
+            <!-- Team & Bike Selection Grid -->
+            <div class="mb-5">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h2 class="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-motorcycle text-red-500"></i> 1. SELECT FACTORY PROTOTYPE MACHINE
+                    </h2>
+                    <span class="text-[11px] text-slate-400">1000cc V4 / Inline-4 Class</span>
+                </div>
+
+                <div id="teamGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Difficulty & Race Settings -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Championship Difficulty -->
+                <div class="bg-slate-900/85 border border-slate-800 rounded-xl p-3.5">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mb-2.5 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> 2. AI RIDER DIFFICULTY
+                    </h3>
+                    <div class="grid grid-cols-3 gap-2" id="difficultyButtons">
+                        <button data-diff="rookie" class="diff-btn py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500">
+                            <div class="font-bold text-xs uppercase">Rookie</div>
+                            <div class="text-[10px] text-slate-400">Forgiving Grip</div>
+                        </button>
+                        <button data-diff="pro" class="diff-btn py-2 px-2 rounded-lg border text-center transition bg-red-600/25 border-red-500 text-white shadow-md">
+                            <div class="font-bold text-xs uppercase">MotoGP Pro</div>
+                            <div class="text-[10px] text-red-300">Balanced Pace</div>
+                        </button>
+                        <button data-diff="legend" class="diff-btn py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500">
+                            <div class="font-bold text-xs uppercase">Legend</div>
+                            <div class="text-[10px] text-slate-400">Aggressive AI</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Legend -->
+                <div class="bg-slate-900/85 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-gamepad text-cyan-400"></i> RIDER CONTROLS & TELEMETRY TIPS
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white">W / ↑</span>
+                            <span>Full Throttle</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white">S / ↓</span>
+                            <span>Carbon Brakes</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white">A D / ← →</span>
+                            <span>Body Lean (64°)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-cyan-300">SPACE</span>
+                            <span>Aero Slipstream</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-2">
+                        <i class="fa-solid fa-circle-info text-amber-400 mr-1"></i> Hit red & white apex kerbs at 52°+ lean for knee-slider sparks! Avoid deep gravel traps.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Launch Race CTA -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-800">
+                <div class="text-xs text-slate-400 flex items-center gap-3">
+                    <span><i class="fa-solid fa-flag-checkered text-white mr-1"></i> Distance: <strong class="text-white">3 Laps</strong></span>
+                    <span>•</span>
+                    <span><i class="fa-solid fa-users text-white mr-1"></i> Grid: <strong class="text-white">8 Factory Riders</strong></span>
+                </div>
+                <button id="btnStartRace" class="w-full sm:w-auto motogp-skew bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-teko text-2xl sm:text-3xl tracking-wider uppercase px-10 py-2.5 rounded shadow-xl btn-glow transition transform hover:scale-105 cursor-pointer">
+                    <span class="motogp-unskew flex items-center justify-center gap-3">
+                        <span>START GRAND PRIX</span>
+                        <i class="fa-solid fa-chevron-right text-xl"></i>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PODIUM / RACE RESULTS TELEMETRY MODAL
+    =========================================== -->
+    <div id="resultsScreen" class="hidden absolute inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+        <div class="carbon-bg border-2 border-slate-700 rounded-2xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl my-auto relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 via-red-600 to-purple-600"></div>
+
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-widest text-red-500">OFFICIAL FIM MotoGP™ CLASSIFICATION</div>
+                    <h2 id="finishTitle" class="font-teko text-4xl sm:text-5xl font-bold uppercase text-white leading-none mt-0.5">GRAND PRIX FINISHED!</h2>
+                </div>
+                <div id="finishBadge" class="motogp-skew bg-amber-500 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase self-start sm:self-auto">
+                    <span class="motogp-unskew">P1 WINNER</span>
+                </div>
+            </div>
+
+            <!-- Player Telemetry Highlights -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-5">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] text-slate-400 uppercase font-bold">TOTAL RACE TIME</div>
+                    <div id="resTotalTime" class="font-mono text-base sm:text-lg font-bold text-white mt-0.5">1:48.210</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] text-purple-400 uppercase font-bold">BEST LAP TIME</div>
+                    <div id="resBestLap" class="font-mono text-base sm:text-lg font-bold text-purple-300 mt-0.5">0:34.890</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] text-cyan-400 uppercase font-bold">TOP SPEED TRAP</div>
+                    <div id="resTopSpeed" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none mt-0.5">354 KM/H</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                    <div class="text-[10px] text-amber-400 uppercase font-bold">MAX LEAN ANGLE</div>
+                    <div id="resMaxLean" class="font-teko text-2xl sm:text-3xl font-bold text-amber-300 leading-none mt-0.5">63°</div>
+                </div>
+            </div>
+
+            <!-- Standings Table -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden mb-5">
+                <div class="grid grid-cols-12 bg-slate-950 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <div class="col-span-2">POS</div>
+                    <div class="col-span-5">RIDER</div>
+                    <div class="col-span-3">FACTORY TEAM</div>
+                    <div class="col-span-2 text-right">GAP / TIME</div>
+                </div>
+                <div id="standingsList" class="divide-y divide-slate-800/70 max-h-56 overflow-y-auto text-xs">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+                <button id="btnChangeBike" class="px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition cursor-pointer">
+                    <i class="fa-solid fa-wrench mr-1.5"></i> Change Factory Bike
+                </button>
+                <button id="btnRestartRace" class="motogp-skew px-8 py-2.5 rounded bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-teko text-2xl uppercase tracking-wider shadow-xl btn-glow transition cursor-pointer">
+                    <span class="motogp-unskew flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-right text-base"></i> INSTANT REMATCH
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. FACTORY TEAMS, BIKES & AI ROSTER CONFIGURATION
+         ********************************************************************/
+        const TEAMS = [
+            {
+                id: 'ducati',
+                name: 'Ducati Lenovo Team',
+                bikeModel: 'Desmosedici GP26',
+                riderName: 'BAGNAIA',
+                riderNum: '63',
+                primary: '#e10600',
+                secondary: '#990000',
+                accent: '#ffffff',
+                suitColor: '#d90404',
+                helmetColor: '#ff1e00',
+                topSpeedStat: 99,
+                accelStat: 97,
+                handlingStat: 92,
+                maxSpeedBonus: 1.02,
+                accelBonus: 1.03,
+                leanRateBonus: 0.98
+            },
+            {
+                id: 'yamaha',
+                name: 'Monster Energy Yamaha',
+                bikeModel: 'YZR-M1 Factory',
+                riderName: 'QUARTARARO',
+                riderNum: '20',
+                primary: '#0033cc',
+                secondary: '#081538',
+                accent: '#39ff14',
+                suitColor: '#0a298a',
+                helmetColor: '#ff0055',
+                topSpeedStat: 93,
+                accelStat: 94,
+                handlingStat: 99,
+                maxSpeedBonus: 0.985,
+                accelBonus: 0.99,
+                leanRateBonus: 1.08
+            },
+            {
+                id: 'ktm',
+                name: 'Red Bull KTM Factory',
+                bikeModel: 'RC16 Carbon',
+                riderName: 'ACOSTA',
+                riderNum: '31',
+                primary: '#ff6600',
+                secondary: '#111b30',
+                accent: '#ffcc00',
+                suitColor: '#162038',
+                helmetColor: '#ff5500',
+                topSpeedStat: 97,
+                accelStat: 98,
+                handlingStat: 94,
+                maxSpeedBonus: 1.005,
+                accelBonus: 1.04,
+                leanRateBonus: 1.01
+            },
+            {
+                id: 'aprilia',
+                name: 'Aprilia Racing Factory',
+                bikeModel: 'RS-GP26 Aero',
+                riderName: 'MARTIN',
+                riderNum: '89',
+                primary: '#18181f',
+                secondary: '#d4002a',
+                accent: '#a855f7',
+                suitColor: '#1d1d26',
+                helmetColor: '#a855f7',
+                topSpeedStat: 96,
+                accelStat: 96,
+                handlingStat: 97,
+                maxSpeedBonus: 1.00,
+                accelBonus: 1.01,
+                leanRateBonus: 1.05
+            }
+        ];
+
+        const EXTRA_AI_RIDERS = [
+            { riderName: 'MARQUEZ', riderNum: '93', teamIdx: 0 },
+            { riderName: 'BINDER',  riderNum: '33', teamIdx: 2 },
+            { riderName: 'VINALES', riderNum: '12', teamIdx: 3 },
+            { riderName: 'RINS',    riderNum: '42', teamIdx: 1 }
+        ];
+
+        let selectedTeamIndex = 0;
+        let selectedDifficulty = 'pro'; // 'rookie' | 'pro' | 'legend'
+
+        /********************************************************************
+         * 2. PROCEDURAL WEB AUDIO SYNTHESIZER (V4 Engine + Kerb + Screech)
+         ********************************************************************/
+        class MotoGPAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.isMuted = false;
+                this.isRunning = false;
+                this.osc1 = null;
+                this.osc2 = null;
+                this.subOsc = null;
+                this.engineGain = null;
+                this.filter = null;
+                this.kerbGain = null;
+                this.kerbOsc = null;
+                this.screechGain = null;
+            }
+
+            init() {
+                if (this.ctx) return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+
+                    // Master Engine Chain (V4 growl: sawtooth + square + sub-octave triangle)
+                    this.engineGain = this.ctx.createGain();
+                    this.engineGain.gain.value = 0.001;
+
+                    this.filter = this.ctx.createBiquadFilter();
+                    this.filter.type = 'lowpass';
+                    this.filter.frequency.value = 900;
+                    this.filter.Q.value = 3.5;
+
+                    this.osc1 = this.ctx.createOscillator();
+                    this.osc1.type = 'sawtooth';
+                    this.osc1.frequency.value = 65;
+
+                    this.osc2 = this.ctx.createOscillator();
+                    this.osc2.type = 'square';
+                    this.osc2.frequency.value = 97.5; // 5th harmonic V4 growl
+
+                    this.subOsc = this.ctx.createOscillator();
+                    this.subOsc.type = 'triangle';
+                    this.subOsc.frequency.value = 32.5;
+
+                    const osc2Gain = this.ctx.createGain();
+                    osc2Gain.gain.value = 0.35;
+
+                    this.osc1.connect(this.filter);
+                    this.osc2.connect(osc2Gain);
+                    osc2Gain.connect(this.filter);
+                    this.subOsc.connect(this.filter);
+
+                    this.filter.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+
+                    this.osc1.start();
+                    this.osc2.start();
+                    this.subOsc.start();
+
+                    // Kerb Rumble Strip Oscillator
+                    this.kerbOsc = this.ctx.createOscillator();
+                    this.kerbOsc.type = 'sawtooth';
+                    this.kerbOsc.frequency.value = 48;
+                    this.kerbGain = this.ctx.createGain();
+                    this.kerbGain.gain.value = 0;
+                    this.kerbOsc.connect(this.kerbGain);
+                    this.kerbGain.connect(this.ctx.destination);
+                    this.kerbOsc.start();
+
+                    // Tire / Knee Slider Screech Noise Generator
+                    const bufferSize = this.ctx.sampleRate * 1.5;
+                    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    const whiteNoise = this.ctx.createBufferSource();
+                    whiteNoise.buffer = noiseBuffer;
+                    whiteNoise.loop = true;
+
+                    const bandpass = this.ctx.createBiquadFilter();
+                    bandpass.type = 'bandpass';
+                    bandpass.frequency.value = 1850;
+                    bandpass.Q.value = 4.0;
+
+                    this.screechGain = this.ctx.createGain();
+                    this.screechGain.gain.value = 0;
+
+                    whiteNoise.connect(bandpass);
+                    bandpass.connect(this.screechGain);
+                    this.screechGain.connect(this.ctx.destination);
+                    whiteNoise.start();
+
+                    this.isRunning = true;
+                } catch (e) {
+                    console.warn('Web Audio API not supported or blocked:', e);
+                }
+            }
+
+            resume() {
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            update(rpmNorm, throttle, onKerb, kneeDownOrSkid, speedRatio) {
+                if (!this.isRunning || !this.ctx) return;
+                const now = this.ctx.currentTime;
+
+                if (this.isMuted) {
+                    this.engineGain.gain.setTargetAtTime(0, now, 0.05);
+                    this.kerbGain.gain.setTargetAtTime(0, now, 0.05);
+                    this.screechGain.gain.setTargetAtTime(0, now, 0.05);
+                    return;
+                }
+
+                // Base frequency maps from idle (58 Hz) to 17,500 RPM scream (310 Hz)
+                const baseFreq = 58 + rpmNorm * 245;
+                this.osc1.frequency.setTargetAtTime(baseFreq, now, 0.03);
+                this.osc2.frequency.setTargetAtTime(baseFreq * 1.498, now, 0.03); // V4 off-beat pulse
+                this.subOsc.frequency.setTargetAtTime(baseFreq * 0.5, now, 0.03);
+
+                // Filter opens up under throttle
+                const cutoff = 500 + rpmNorm * 2600 + (throttle ? 700 : 0);
+                this.filter.frequency.setTargetAtTime(cutoff, now, 0.04);
+
+                const targetVol = 0.08 + rpmNorm * 0.07 + (throttle ? 0.03 : 0);
+                this.engineGain.gain.setTargetAtTime(targetVol, now, 0.04);
+
+                // Kerb vibration rumble
+                if (onKerb && speedRatio > 0.1) {
+                    this.kerbOsc.frequency.setTargetAtTime(35 + speedRatio * 55, now, 0.02);
+                    this.kerbGain.gain.setTargetAtTime(0.11, now, 0.02);
+                } else {
+                    this.kerbGain.gain.setTargetAtTime(0, now, 0.04);
+                }
+
+                // Knee slider titanium sparks / tire screech
+                if (kneeDownOrSkid && speedRatio > 0.25) {
+                    this.screechGain.gain.setTargetAtTime(0.055, now, 0.03);
+                } else {
+                    this.screechGain.gain.setTargetAtTime(0, now, 0.05);
+                }
+            }
+
+            playBeep(freq = 880, duration = 0.16) {
+                if (this.isMuted) return;
+                this.init();
+                this.resume();
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch (e) {}
+            }
+
+            silence() {
+                if (!this.isRunning || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                this.engineGain.gain.setTargetAtTime(0, now, 0.08);
+                this.kerbGain.gain.setTargetAtTime(0, now, 0.05);
+                this.screechGain.gain.setTargetAtTime(0, now, 0.05);
+            }
+        }
+
+        const audio = new MotoGPAudioEngine();
+
+        /********************************************************************
+         * 3. PSEUDO-3D TRACK GENERATION & MINIMAP GEOMETRY
+         ********************************************************************/
+        const SEGMENT_LENGTH = 200;
+        const ROAD_WIDTH = 2100;
+        const RUMBLE_LENGTH = 3;
+        const DRAW_DISTANCE = 155;
+        const CAMERA_HEIGHT = 960;
+        const CAMERA_DEPTH = 0.92; // FOV factor
+        const TOTAL_LAPS = 3;
+
+        let segments = [];
+        let trackLength = 0;
+        let minimapPoints = [];
+
+        function easeIn(a, b, percent) {
+            return a + (b - a) * Math.pow(percent, 2);
+        }
+        function easeOut(a, b, percent) {
+            return a + (b - a) * (1 - Math.pow(1 - percent, 2));
+        }
+        function easeInOut(a, b, percent) {
+            return a + (b - a) * ((-Math.cos(percent * Math.PI) / 2) + 0.5);
+        }
+
+        function lastY() {
+            return (segments.length === 0) ? 0 : segments[segments.length - 1].p2.world.y;
+        }
+
+        function addSegment(curve, y) {
+            const n = segments.length;
+            segments.push({
+                index: n,
+                p1: { world: { x: 0, y: lastY(), z: n * SEGMENT_LENGTH }, camera: {}, screen: {} },
+                p2: { world: { x: 0, y: y,       z: (n + 1) * SEGMENT_LENGTH }, camera: {}, screen: {} },
+                curve: curve,
+                sprites: [],
+                riders: [],
+                color: Math.floor(n / RUMBLE_LENGTH) % 2 ? 'dark' : 'light',
+                clip: 0
+            });
+        }
+
+        function addRoad(enter, hold, leave, curve, y) {
+            const startY = lastY();
+            const endY = startY + (y * SEGMENT_LENGTH);
+            const total = enter + hold + leave;
+            for (let n = 0; n < enter; n++) {
+                addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total));
+            }
+            for (let n = 0; n < hold; n++) {
+                addSegment(curve, easeInOut(startY, endY, (enter + n) / total));
+            }
+            for (let n = 0; n < leave; n++) {
+                addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total));
+            }
+        }
+
+        function addSprite(n, type, offset, extra = {}) {
+            if (segments[n]) {
+                segments[n].sprites.push({ type, offset, ...extra });
+            }
+        }
+
+        function buildCircuit() {
+            segments = [];
+
+            // 1. Mugello Main Pit Straight (Flat, ultra fast)
+            addRoad(20, 75, 20, 0, 0);
+            // 2. San Donato (Turn 1 - Uphill braking right-hander)
+            addRoad(18, 45, 18, 4.4, 24);
+            // 3. Luco - Poggio Secco Chicane (Left-Right S-bend)
+            addRoad(15, 35, 15, -4.2, 10);
+            addRoad(15, 35, 15, 3.8, -12);
+            // 4. Materassi - Borgo San Lorenzo fast sweepers
+            addRoad(20, 40, 20, -3.2, -22);
+            // 5. Casanova - Savelli downhill plunge
+            addRoad(18, 45, 18, 4.5, -28);
+            // 6. Arrabbiata 1 & 2 (Blind uphill high-speed right sweepers)
+            addRoad(20, 55, 15, 5.1, 36);
+            addRoad(15, 45, 20, 3.6, 18);
+            // 7. Scarperia - Palagio technical section
+            addRoad(15, 35, 15, -4.6, -10);
+            addRoad(15, 40, 15, 2.5, -16);
+            // 8. Correntaio Hairpin
+            addRoad(18, 50, 18, -5.4, 0);
+            // 9. Biondetti S-Curves into Bucine final sweeping corner
+            addRoad(12, 28, 12, 3.8, 0);
+            addRoad(18, 60, 22, -4.5, 0);
+
+            // Smooth return to zero elevation before start/finish line
+            const currentY = lastY();
+            addRoad(20, 45, 20, 0, -currentY / SEGMENT_LENGTH);
+
+            trackLength = segments.length * SEGMENT_LENGTH;
+
+            // Populate Scenery: Grandstands, Sponsor Arches, Billboards, Cypress & Pine Trees, Apex Markers
+            const sponsors = ['MOTUL', 'MICHELIN', 'DHL', 'RED BULL', 'BREMBO', 'TISSOT', 'OAKLEY', 'MONSTER'];
+
+            // Main straight grandstands on left & pit wall/towers on right
+            for (let n = 10; n < 110; n += 14) {
+                addSprite(n, 'grandstand', -1.85);
+                addSprite(n, 'pitbuilding', 1.85);
+            }
+
+            // Start / Finish Gantry at segment 18
+            addSprite(18, 'gantry', 0, { text: 'MotoGP™ MUGELLO GRAND PRIX' });
+            addSprite(Math.floor(segments.length * 0.34), 'gantry', 0, { text: 'SECTOR 1 • MICHELIN' });
+            addSprite(Math.floor(segments.length * 0.67), 'gantry', 0, { text: 'SECTOR 2 • BREMBO BRAKES' });
+
+            // Populate trackside details along the whole circuit
+            for (let n = 115; n < segments.length - 20; n += 6) {
+                const seg = segments[n];
+                // Corner Brake / Apex Boards on outside of strong curves
+                if (Math.abs(seg.curve) > 3.0 && n % 12 === 0) {
+                    const outside = seg.curve > 0 ? -1.45 : 1.45;
+                    addSprite(n, 'chevron', outside, { dir: seg.curve > 0 ? 1 : -1 });
+                }
+
+                // Grandstands near major stadium sections
+                if ((n > 420 && n < 560 && n % 18 === 0) || (n > 850 && n < 980 && n % 18 === 0)) {
+                    addSprite(n, 'grandstand', -2.0);
+                }
+
+                // Sponsor billboards
+                if (n % 36 === 0) {
+                    const side = (n % 72 === 0) ? -1.65 : 1.65;
+                    const label = sponsors[(n / 36) % sponsors.length];
+                    addSprite(n, 'billboard', side, { label });
+                }
+
+                // Tuscan Cypress & Oak Trees
+                if (n % 8 === 0) {
+                    const treeType = (n % 16 === 0) ? 'cypress' : 'tree';
+                    addSprite(n, treeType, -2.3 - (Math.sin(n) * 0.8));
+                    addSprite(n, treeType, 2.3 + (Math.cos(n) * 0.8));
+                }
+            }
+
+            // Generate 2D Minimap Closed Loop Path from segment curvatures
+            generateMinimapLoop();
+        }
+
+        function generateMinimapLoop() {
+            let x = 0, y = 0, angle = 0;
+            const rawPts = [];
+            for (let i = 0; i < segments.length; i++) {
+                angle += segments[i].curve * 0.00295;
+                x += Math.cos(angle);
+                y += Math.sin(angle);
+                rawPts.push({ x, y });
+            }
+            // Close the loop smoothly by distributing closing delta linearly
+            const dx = rawPts[rawPts.length - 1].x - rawPts[0].x;
+            const dy = rawPts[rawPts.length - 1].y - rawPts[0].y;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+            for (let i = 0; i < rawPts.length; i++) {
+                const t = i / (rawPts.length - 1);
+                rawPts[i].x -= dx * t;
+                rawPts[i].y -= dy * t;
+                if (rawPts[i].x < minX) minX = rawPts[i].x;
+                if (rawPts[i].x > maxX) maxX = rawPts[i].x;
+                if (rawPts[i].y < minY) minY = rawPts[i].y;
+                if (rawPts[i].y > maxY) maxY = rawPts[i].y;
+            }
+
+            const w = Math.max(1, maxX - minX);
+            const h = Math.max(1, maxY - minY);
+            minimapPoints = rawPts.map(pt => ({
+                nx: (pt.x - minX) / w,
+                ny: (pt.y - minY) / h
+            }));
+        }
+
+        /********************************************************************
+         * 4. PLAYER & AI RIDER STATE + PHYSICS PARAMETERS
+         ********************************************************************/
+        const BASE_MAX_SPEED = SEGMENT_LENGTH * 62; // ~360 km/h scaled
+        const player = {
+            x: 0,               // normalized road offset (-1 to +1 is road edge)
+            z: 0,               // track distance
+            speed: 0,
+            maxSpeed: BASE_MAX_SPEED,
+            leanAngle: 0,       // -64 to +64 degrees
+            maxLeanRecorded: 0,
+            topSpeedRecorded: 0,
+            gear: 1,
+            rpm: 4000,
+            boost: 100,
+            isBoosting: false,
+            onKerb: false,
+            offRoad: false,
+            lap: 1,
+            totalLapsCompleted: 0,
+            currentLapTime: 0,
+            lastLapTime: null,
+            bestLapTime: null,
+            totalRaceTime: 0,
+            finished: false,
+            finishTime: 0,
+            team: TEAMS[0],
+            wheelRotation: 0,
+            exhaustFlame: 0
+        };
+
+        let aiRiders = [];
+        let particles = []; // Knee-slider sparks, tire smoke, exhaust pops
+        let skyOffset = 0;
+        let hillOffset = 0;
+        let gyroCamEnabled = true;
+
+        // Game state machine: 'MENU' | 'COUNTDOWN' | 'RACING' | 'FINISHED'
+        let gameState = 'MENU';
+        let countdownTimer = 0;
+        let countdownStep = 0;
+
+        // Input States
+        const keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            boost: false
+        };
+
+        function setupGrid() {
+            const team = TEAMS[selectedTeamIndex];
+            player.team = team;
+            player.maxSpeed = BASE_MAX_SPEED * team.maxSpeedBonus;
+            player.x = -0.35;
+            player.z = 12 * SEGMENT_LENGTH; // Just behind start line (segment 18)
+            player.speed = 0;
+            player.leanAngle = 0;
+            player.maxLeanRecorded = 0;
+            player.topSpeedRecorded = 0;
+            player.gear = 1;
+            player.rpm = 4200;
+            player.boost = 100;
+            player.lap = 1;
+            player.totalLapsCompleted = 0;
+            player.currentLapTime = 0;
+            player.lastLapTime = null;
+            player.bestLapTime = null;
+            player.totalRaceTime = 0;
+            player.finished = false;
+
+            // Build 7 competitive AI Riders
+            aiRiders = [];
+            const roster = [];
+            TEAMS.forEach((t, idx) => {
+                if (idx !== selectedTeamIndex) {
+                    roster.push({
+                        riderName: t.riderName,
+                        riderNum: t.riderNum,
+                        team: t
+                    });
+                }
+            });
+            EXTRA_AI_RIDERS.forEach(extra => {
+                roster.push({
+                    riderName: extra.riderName,
+                    riderNum: extra.riderNum,
+                    team: TEAMS[extra.teamIdx]
+                });
+            });
+
+            // Difficulty speed multipliers
+            const diffScale = selectedDifficulty === 'rookie' ? 0.87 : (selectedDifficulty === 'pro' ? 0.945 : 0.995);
+
+            for (let i = 0; i < 7; i++) {
+                const info = roster[i];
+                const row = i + 1;
+                const gridOffset = (i % 2 === 0) ? 0.38 : -0.38;
+                const startZ = (13 + i * 2) * SEGMENT_LENGTH;
+                aiRiders.push({
+                    id: i,
+                    riderName: info.riderName,
+                    riderNum: info.riderNum,
+                    team: info.team,
+                    x: gridOffset,
+                    z: startZ % trackLength,
+                    totalDistance: startZ,
+                    speed: 0,
+                    baseTopSpeed: BASE_MAX_SPEED * diffScale * (0.94 + (i * 0.012)),
+                    leanAngle: 0,
+                    targetX: gridOffset,
+                    laneTimer: Math.random() * 3,
+                    lap: 1,
+                    finished: false,
+                    finishTime: 0
+                });
+            }
+
+            particles = [];
+            updateTeamHUD();
+        }
+
+        /********************************************************************
+         * 5. HUD & UI INITIALIZATION AND HELPERS
+         ********************************************************************/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const minimapCanvas = document.getElementById('minimapCanvas');
+        const minimapCtx = minimapCanvas.getContext('2d');
+        const leanCanvas = document.getElementById('leanGaugeCanvas');
+        const leanCtx = leanCanvas.getContext('2d');
+
+        // Build 16 LED segments in RPM Bar
+        const rpmBarContainer = document.getElementById('rpmBarContainer');
+        const rpmLeds = [];
+        for (let i = 0; i < 16; i++) {
+            const led = document.createElement('div');
+            led.className = 'flex-1 h-full rounded-[1px] bg-slate-800 transition-colors duration-75';
+            rpmBarContainer.appendChild(led);
+            rpmLeds.push(led);
+        }
+
+        function renderTeamCards() {
+            const grid = document.getElementById('teamGrid');
+            grid.innerHTML = '';
+            TEAMS.forEach((team, idx) => {
+                const isSelected = idx === selectedTeamIndex;
+                const card = document.createElement('div');
+                card.className = `cursor-pointer rounded-xl p-3.5 border-2 transition-all duration-150 relative overflow-hidden ${
+                    isSelected
+                        ? 'bg-slate-900 border-red-500 shadow-lg shadow-red-600/20 scale-[1.02]'
+                        : 'bg-slate-900/65 border-slate-800 hover:border-slate-600'
+                }`;
+                card.innerHTML = `
+                    <div class="w-full h-1.5 rounded-full mb-2.5" style="background: linear-gradient(90deg, ${team.primary}, ${team.accent})"></div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-teko text-2xl font-bold px-2 py-0.2 rounded leading-none" style="background:${team.primary}; color:#fff">#${team.riderNum}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300">${team.bikeModel}</span>
+                    </div>
+                    <div class="font-bold text-sm text-white tracking-wide">${team.riderName}</div>
+                    <div class="text-[11px] text-slate-400 mb-3 truncate">${team.name}</div>
+                    <div class="space-y-1.5 text-[10px]">
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-0.5"><span>TOP SPEED</span><span class="text-white font-bold">${team.topSpeedStat}</span></div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full" style="width:${team.topSpeedStat}%; background:${team.primary}"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-0.5"><span>ACCELERATION</span><span class="text-white font-bold">${team.accelStat}</span></div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full" style="width:${team.accelStat}%; background:${team.primary}"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-slate-400 mb-0.5"><span>CORNER LEAN</span><span class="text-white font-bold">${team.handlingStat}</span></div>
+                            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div class="h-full rounded-full" style="width:${team.handlingStat}%; background:${team.accent}"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    selectedTeamIndex = idx;
+                    audio.playBeep(660, 0.07);
+                    renderTeamCards();
+                });
+                grid.appendChild(card);
+            });
+        }
+
+        function updateTeamHUD() {
+            const t = player.team;
+            document.getElementById('hudTeamStripe').style.backgroundColor = t.primary;
+            document.getElementById('hudRiderNumber').textContent = t.riderNum;
+            document.getElementById('hudRiderName').textContent = t.riderName;
+            document.getElementById('hudTeamName').textContent = t.name;
+        }
+
+        function formatLapTime(seconds) {
+            if (seconds === null || seconds === undefined || isNaN(seconds)) return '--:--.---';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            const ms = Math.floor((seconds % 1) * 1000);
+            return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+        }
+
+        let bannerTimeout = null;
+        function showRaceBanner(text, duration = 2400) {
+            const banner = document.getElementById('raceBanner');
+            const bannerText = document.getElementById('raceBannerText');
+            bannerText.textContent = text;
+            banner.classList.remove('opacity-0', '-translate-y-2');
+            banner.classList.add('opacity-100', 'translate-y-0');
+            if (bannerTimeout) clearTimeout(bannerTimeout);
+            bannerTimeout = setTimeout(() => {
+                banner.classList.add('opacity-0', '-translate-y-2');
+                banner.classList.remove('opacity-100', 'translate-y-0');
+            }, duration);
+        }
+
+        /********************************************************************
+         * 6. PHYSICS & AI SIMULATION UPDATE LOOP
+         ********************************************************************/
+        function getPlayerTotalDistance() {
+            // Adjust for starting just behind segment 18
+            return (player.totalLapsCompleted * trackLength) + player.z;
+        }
+
+        function getCurrentStandings() {
+            const all = [
+                {
+                    isPlayer: true,
+                    riderName: player.team.riderName,
+                    riderNum: player.team.riderNum,
+                    team: player.team,
+                    progress: getPlayerTotalDistance(),
+                    finished: player.finished,
+                    finishTime: player.finishTime
+                },
+                ...aiRiders.map(ai => ({
+                    isPlayer: false,
+                    riderName: ai.riderName,
+                    riderNum: ai.riderNum,
+                    team: ai.team,
+                    progress: ai.totalDistance,
+                    finished: ai.finished,
+                    finishTime: ai.finishTime
+                }))
+            ];
+
+            all.sort((a, b) => {
+                if (a.finished && b.finished) return a.finishTime - b.finishTime;
+                if (a.finished) return -1;
+                if (b.finished) return 1;
+                return b.progress - a.progress;
+            });
+
+            return all;
+        }
+
+        function updateCountdown(dt) {
+            countdownTimer += dt;
+            const lights = document.querySelectorAll('.start-light');
+            const step = Math.floor(countdownTimer / 0.75);
+
+            if (step > countdownStep && step <= 5) {
+                countdownStep = step;
+                lights[step - 1].classList.remove('bg-slate-800', 'border-slate-600');
+                lights[step - 1].classList.add('bg-red-600', 'border-red-300', 'shadow-[0_0_18px_#ef4444]');
+                audio.playBeep(440, 0.14);
+            } else if (countdownTimer >= 4.25) {
+                // LIGHTS OUT!
+                lights.forEach(l => {
+                    l.classList.remove('bg-red-600', 'border-red-300', 'shadow-[0_0_18px_#ef4444]');
+                    l.classList.add('bg-emerald-500', 'border-emerald-200', 'shadow-[0_0_18px_#10b981]');
+                });
+                audio.playBeep(880, 0.35);
+                showRaceBanner('LIGHTS OUT AND AWAY WE GO!', 2500);
+                gameState = 'RACING';
+                setTimeout(() => {
+                    document.getElementById('startLightsPanel').classList.add('opacity-0');
+                }, 1200);
+            }
+        }
+
+        function updatePhysics(dt) {
+            if (gameState === 'COUNTDOWN') {
+                // Allow revving the engine on the starting grid!
+                if (keys.up) {
+                    player.rpm = Math.min(16800, player.rpm + 26000 * dt);
+                } else {
+                    player.rpm = Math.max(4200, player.rpm - 18000 * dt);
+                }
+                const rpmNorm = (player.rpm - 4000) / 13500;
+                audio.update(rpmNorm, keys.up, false, false, 0);
+                updateCountdown(dt);
+                updateHUD();
+                return;
+            }
+
+            if (gameState !== 'RACING') return;
+
+            player.totalRaceTime += dt;
+            player.currentLapTime += dt;
+
+            const playerSegment = segments[Math.floor(player.z / SEGMENT_LENGTH) % segments.length];
+            const speedRatio = player.speed / player.maxSpeed;
+
+            // 1. Aero Slipstream / Boost Management
+            player.isBoosting = keys.boost && player.boost > 2 && keys.up && !player.offRoad;
+            if (player.isBoosting) {
+                player.boost = Math.max(0, player.boost - 28 * dt);
+                player.exhaustFlame = 1.0;
+            } else {
+                // Recharge boost slowly, faster when drafting behind an AI bike
+                let slipstreamBonus = 8;
+                for (let i = 0; i < aiRiders.length; i++) {
+                    const distZ = (aiRiders[i].z - player.z + trackLength) % trackLength;
+                    if (distZ > 0 && distZ < 16 * SEGMENT_LENGTH && Math.abs(aiRiders[i].x - player.x) < 0.35) {
+                        slipstreamBonus = 24;
+                        break;
+                    }
+                }
+                player.boost = Math.min(100, player.boost + slipstreamBonus * dt);
+                player.exhaustFlame = Math.max(0, player.exhaustFlame - 4 * dt);
+            }
+
+            // 2. Acceleration, Aerodynamic Drag & Carbon Braking
+            const currentMaxSpeed = player.isBoosting ? player.maxSpeed * 1.11 : player.maxSpeed;
+            const accelForce = (player.maxSpeed / 4.1) * player.team.accelBonus * (player.isBoosting ? 1.35 : 1.0);
+            const brakeForce = -player.maxSpeed * 0.95;
+            const engineBraking = -player.maxSpeed / 6.5;
+
+            if (keys.up) {
+                // Nonlinear MotoGP acceleration curve
+                const factor = 1.0 - Math.pow(player.speed / currentMaxSpeed, 2.2) * 0.65;
+                player.speed += accelForce * factor * dt;
+            } else if (keys.down) {
+                player.speed += brakeForce * dt;
+                if (speedRatio > 0.45 && Math.random() < 0.35) {
+                    player.exhaustFlame = 0.8; // Downshift backfire!
+                }
+            } else {
+                player.speed += engineBraking * dt;
+            }
+
+            // 3. Steering & Realistic Motorcycle Lean Angle Physics (-64° to +64°)
+            const maxLean = 63;
+            const leanInput = (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
+            const leanResponsiveness = 215 * player.team.leanRateBonus;
+
+            if (leanInput !== 0) {
+                player.leanAngle += leanInput * leanResponsiveness * dt;
+                player.leanAngle = Math.max(-maxLean, Math.min(maxLean, player.leanAngle));
+            } else {
+                // Self-righting gyroscopic stability of motorcycle
+                const returnRate = 250 * dt;
+                if (Math.abs(player.leanAngle) <= returnRate) {
+                    player.leanAngle = 0;
+                } else {
+                    player.leanAngle -= Math.sign(player.leanAngle) * returnRate;
+                }
+            }
+
+            const absLean = Math.abs(player.leanAngle);
+            if (absLean > Math.abs(player.maxLeanRecorded)) {
+                player.maxLeanRecorded = Math.round(absLean);
+            }
+
+            // Lateral road movement derived from lean angle + speed
+            const steerAuthority = Math.max(0.28, Math.sin(Math.min(1, speedRatio * 1.4) * Math.PI * 0.5));
+            player.x += (player.leanAngle / maxLean) * steerAuthority * 2.55 * dt;
+
+            // 4. Centrifugal Force on Curves
+            const centrifugal = 0.46;
+            player.x -= (speedRatio * speedRatio) * playerSegment.curve * centrifugal * dt;
+
+            // 5. Kerb Detection & Off-Road Grass/Gravel Slowdown
+            const absX = Math.abs(player.x);
+            player.onKerb = (absX >= 0.92 && absX <= 1.18);
+            player.offRoad = (absX > 1.18);
+
+            if (player.offRoad) {
+                const offRoadTarget = player.maxSpeed * 0.36;
+                if (player.speed > offRoadTarget) {
+                    player.speed -= player.maxSpeed * 0.85 * dt;
+                }
+            }
+
+            // Clamp speed & track boundaries
+            player.speed = Math.max(0, Math.min(currentMaxSpeed, player.speed));
+            player.x = Math.max(-2.15, Math.min(2.15, player.x));
+
+            // Convert internal speed to realistic MotoGP km/h (up to ~362 km/h)
+            const kmh = Math.round((player.speed / BASE_MAX_SPEED) * 348);
+            if (kmh > player.topSpeedRecorded) player.topSpeedRecorded = kmh;
+
+            // 6. 6-Speed Sequential Gearbox & RPM Synthesizer Calculation
+            const gearThresholds = [0, 0.22, 0.39, 0.56, 0.73, 0.88, 1.18];
+            let newGear = 1;
+            for (let g = 1; g <= 6; g++) {
+                if (speedRatio >= gearThresholds[g - 1]) newGear = g;
+            }
+            if (newGear < player.gear && player.speed > 1000) {
+                player.exhaustFlame = 0.9; // Blip on downshift
+            }
+            player.gear = newGear;
+
+            const gearMin = gearThresholds[player.gear - 1];
+            const gearMax = gearThresholds[player.gear];
+            const inGearRatio = Math.max(0, Math.min(1, (speedRatio - gearMin) / (gearMax - gearMin)));
+            player.rpm = Math.round(4500 + (inGearRatio * 13000));
+            if (player.speed < 80) player.rpm = 4200;
+
+            // 7. Knee-Slider Sparks & Tire Smoke Particle Spawning
+            const isKneeScraping = absLean >= 50 && speedRatio > 0.28;
+            if (isKneeScraping) {
+                const sparkSide = Math.sign(player.leanAngle);
+                for (let s = 0; s < 3; s++) {
+                    particles.push({
+                        type: 'spark',
+                        x: sparkSide * 58 + (Math.random() - 0.5) * 14,
+                        y: -12 + (Math.random() - 0.5) * 8,
+                        vx: ( -sparkSide * 90 + (Math.random() - 0.5) * 180 ),
+                        vy: -40 - Math.random() * 140,
+                        life: 0.18 + Math.random() * 0.18,
+                        maxLife: 0.35,
+                        color: Math.random() > 0.35 ? '#fde047' : '#fb923c'
+                    });
+                }
+            }
+
+            // Tire smoke under hard braking or gravel kickup
+            if ((keys.down && speedRatio > 0.45) || (player.offRoad && speedRatio > 0.2)) {
+                particles.push({
+                    type: 'smoke',
+                    x: (Math.random() - 0.5) * 28,
+                    y: -6,
+                    vx: (Math.random() - 0.5) * 65,
+                    vy: -25 - Math.random() * 45,
+                    size: 10 + Math.random() * 14,
+                    life: 0.35,
+                    maxLife: 0.35,
+                    color: player.offRoad ? 'rgba(163, 140, 102, 0.55)' : 'rgba(220, 230, 242, 0.45)'
+                });
+            }
+
+            // Update existing particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 320 * dt; // Gravity on sparks
+                p.life -= dt;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            // 8. Advance Player Z Position & Check Start/Finish Line Crossing (Segment 18)
+            const prevZ = player.z;
+            const startLineZ = 18 * SEGMENT_LENGTH;
+            player.z = (player.z + player.speed * dt) % trackLength;
+            player.wheelRotation += player.speed * dt * 0.01;
+
+            // Parallax background scroll based on curve and pitch
+            skyOffset = (skyOffset - playerSegment.curve * speedRatio * 0.55) % 1200;
+            hillOffset = (hillOffset - playerSegment.curve * speedRatio * 1.15) % 1200;
+
+            // Detect crossing segment 18
+            const crossedStartLine = (prevZ < startLineZ && player.z >= startLineZ) ||
+                                     (prevZ > trackLength - SEGMENT_LENGTH * 10 && player.z < SEGMENT_LENGTH * 10 && startLineZ === 0);
+
+            if (crossedStartLine && player.totalRaceTime > 8) {
+                player.totalLapsCompleted++;
+
+                // Record Lap Time
+                player.lastLapTime = player.currentLapTime;
+                let isBest = false;
+                if (player.bestLapTime === null || player.lastLapTime < player.bestLapTime) {
+                    player.bestLapTime = player.lastLapTime;
+                    isBest = true;
+                }
+                player.currentLapTime = 0;
+
+                if (player.totalLapsCompleted >= TOTAL_LAPS) {
+                    // Race Finished!
+                    player.finished = true;
+                    player.finishTime = player.totalRaceTime;
+                    audio.playBeep(1046, 0.4);
+                    completeRace();
+                    return;
+                } else {
+                    player.lap = player.totalLapsCompleted + 1;
+                    audio.playBeep(784, 0.18);
+                    if (player.lap === TOTAL_LAPS) {
+                        showRaceBanner('FINAL LAP! PUSH TO THE LIMIT!', 2600);
+                    } else if (isBest) {
+                        showRaceBanner(`PURPLE FASTEST LAP: ${formatLapTime(player.bestLapTime)}`, 2600);
+                    } else {
+                        showRaceBanner(`LAP ${player.lap} OF ${TOTAL_LAPS}`, 2000);
+                    }
+                }
+            }
+
+            // 9. Update AI Riders & Player-AI Proximity Collisions
+            updateAIRiders(dt);
+
+            // 10. Update Engine Audio Synthesizer & Telemetry HUD
+            const rpmNorm = Math.max(0, Math.min(1, (player.rpm - 4200) / 13300));
+            audio.update(rpmNorm, keys.up, player.onKerb, isKneeScraping || (keys.down && speedRatio > 0.5), speedRatio);
+            updateHUD();
+        }
+
+        function updateAIRiders(dt) {
+            // Clear segment rider buckets
+            for (let i = 0; i < segments.length; i++) {
+                segments[i].riders.length = 0;
+            }
+
+            const playerProgress = getPlayerTotalDistance();
+
+            for (let i = 0; i < aiRiders.length; i++) {
+                const ai = aiRiders[i];
+                const segIdx = Math.floor(ai.z / SEGMENT_LENGTH) % segments.length;
+                const seg = segments[segIdx];
+                const lookAheadSeg = segments[(segIdx + 12) % segments.length];
+
+                // Cornering speed adjustment + subtle rubber-banding to keep races thrilling
+                const cornerDemand = Math.max(Math.abs(seg.curve), Math.abs(lookAheadSeg.curve));
+                const cornerSlowdown = cornerDemand > 3.2 ? (1.0 - (cornerDemand - 3.0) * 0.055) : 1.0;
+
+                const distDelta = playerProgress - ai.totalDistance;
+                let rubberBand = 1.0;
+                if (distDelta > SEGMENT_LENGTH * 90) {
+                    rubberBand = 1.065; // AI catches up slightly if far behind
+                } else if (distDelta < -SEGMENT_LENGTH * 80) {
+                    rubberBand = 0.94;  // AI eases slightly if far ahead
+                }
+
+                const targetSpeed = ai.baseTopSpeed * cornerSlowdown * rubberBand;
+                if (ai.speed < targetSpeed) {
+                    ai.speed = Math.min(targetSpeed, ai.speed + (ai.baseTopSpeed * 0.35) * dt);
+                } else {
+                    ai.speed = Math.max(targetSpeed, ai.speed - (ai.baseTopSpeed * 0.55) * dt);
+                }
+
+                // Racing line selection (dive toward apex of upcoming curve)
+                ai.laneTimer -= dt;
+                if (ai.laneTimer <= 0) {
+                    ai.laneTimer = 1.2 + Math.random() * 1.8;
+                    if (Math.abs(lookAheadSeg.curve) > 2.0) {
+                        // Apex is inside of turn
+                        ai.targetX = lookAheadSeg.curve > 0 ? 0.55 : -0.55;
+                    } else {
+                        ai.targetX = (Math.random() - 0.5) * 1.15;
+                    }
+                }
+
+                const dx = ai.targetX - ai.x;
+                ai.x += Math.sign(dx) * Math.min(Math.abs(dx), 0.85 * dt);
+                ai.x = Math.max(-0.82, Math.min(0.82, ai.x));
+
+                // Lean angle visual for AI bike based on road curvature and lateral movement
+                const desiredLean = Math.max(-58, Math.min(58, seg.curve * 9.5 + dx * 32));
+                ai.leanAngle += (desiredLean - ai.leanAngle) * 8 * dt;
+
+                // Advance AI along circuit
+                const stepDist = ai.speed * dt;
+                ai.z = (ai.z + stepDist) % trackLength;
+                ai.totalDistance += stepDist;
+
+                // Check if AI finished 3 laps
+                const finishDist = TOTAL_LAPS * trackLength + 18 * SEGMENT_LENGTH;
+                if (!ai.finished && ai.totalDistance >= finishDist) {
+                    ai.finished = true;
+                    ai.finishTime = player.totalRaceTime;
+                }
+
+                // Check Player-AI Bike Collision
+                const zDiff = Math.abs(ai.z - player.z);
+                if (zDiff < SEGMENT_LENGTH * 1.4 && Math.abs(ai.x - player.x) < 0.24) {
+                    // Bump physics + sparks!
+                    const pushDir = player.x >= ai.x ? 1 : -1;
+                    player.x += pushDir * 0.14;
+                    ai.x -= pushDir * 0.12;
+                    if (player.speed > ai.speed) {
+                        player.speed = ai.speed * 0.92;
+                    }
+                    audio.playBeep(160, 0.09);
+                    for (let s = 0; s < 8; s++) {
+                        particles.push({
+                            type: 'spark',
+                            x: -pushDir * 40,
+                            y: -35,
+                            vx: (Math.random() - 0.5) * 260,
+                            vy: -80 - Math.random() * 140,
+                            life: 0.25,
+                            maxLife: 0.25,
+                            color: '#fde047'
+                        });
+                    }
+                }
+
+                // Register AI rider in segment for painter's algorithm rendering
+                const renderSegIdx = Math.floor(ai.z / SEGMENT_LENGTH) % segments.length;
+                segments[renderSegIdx].riders.push(ai);
+            }
+        }
+
+        function updateHUD() {
+            const kmh = Math.round((player.speed / BASE_MAX_SPEED) * 348);
+            document.getElementById('hudSpeed').textContent = kmh;
+            document.getElementById('hudGear').textContent = player.gear;
+            document.getElementById('hudRpmVal').textContent = player.rpm.toLocaleString();
+
+            // Update 16 LED Shift Lights
+            const rpmRatio = Math.max(0, Math.min(1, (player.rpm - 4000) / 13500));
+            const litCount = Math.round(rpmRatio * 16);
+            const isShiftPoint = player.rpm >= 16400;
+
+            for (let i = 0; i < 16; i++) {
+                const led = rpmLeds[i];
+                if (i < litCount) {
+                    if (isShiftPoint) {
+                        led.className = 'flex-1 h-full rounded-[1px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] shift-flash';
+                    } else if (i < 7) {
+                        led.className = 'flex-1 h-full rounded-[1px] bg-emerald-500';
+                    } else if (i < 12) {
+                        led.className = 'flex-1 h-full rounded-[1px] bg-amber-400';
+                    } else {
+                        led.className = 'flex-1 h-full rounded-[1px] bg-red-600 shadow-[0_0_6px_#e10600]';
+                    }
+                } else {
+                    led.className = 'flex-1 h-full rounded-[1px] bg-slate-800';
+                }
+            }
+
+            // Throttle & Brake Telemetry Bars
+            document.getElementById('hudThrottleBar').style.width = keys.up ? '100%' : '0%';
+            document.getElementById('hudBrakeBar').style.width = keys.down ? '100%' : '0%';
+
+            // Lean Angle Telemetry
+            const absLean = Math.round(Math.abs(player.leanAngle));
+            document.getElementById('hudLeanDeg').textContent = `${absLean}°`;
+            document.getElementById('hudLeanDir').textContent = absLean < 2 ? 'CENTER' : (player.leanAngle < 0 ? 'LEFT' : 'RIGHT');
+            document.getElementById('hudMaxLean').textContent = `${player.maxLeanRecorded}°`;
+            drawLeanGauge(player.leanAngle);
+
+            // Boost & Surface Status
+            const boostRounded = Math.round(player.boost);
+            document.getElementById('hudBoostPct').textContent = `${boostRounded}%`;
+            document.getElementById('hudBoostBar').style.width = `${boostRounded}%`;
+
+            const surfEl = document.getElementById('hudSurfaceStatus');
+            if (player.offRoad) {
+                surfEl.innerHTML = `<span class="text-amber-500">▲</span> GRAVEL TRAP PENALTY`;
+            } else if (player.onKerb) {
+                surfEl.innerHTML = `<span class="text-red-500">◆</span> APEX KERB RUMBLE`;
+            } else if (absLean >= 50) {
+                surfEl.innerHTML = `<span class="text-yellow-300">★</span> KNEE SLIDER DOWN (${absLean}°)`;
+            } else {
+                surfEl.innerHTML = `<span class="text-emerald-400">●</span> ASPHALT GRIP 100%`;
+            }
+
+            // Lap & Timing
+            document.getElementById('hudLapCount').textContent = `${player.lap} / ${TOTAL_LAPS}`;
+            document.getElementById('hudCurLap').textContent = formatLapTime(player.currentLapTime);
+            document.getElementById('hudLastLap').textContent = formatLapTime(player.lastLapTime);
+            document.getElementById('hudBestLap').textContent = formatLapTime(player.bestLapTime);
+
+            // Race Position
+            const standings = getCurrentStandings();
+            const posIdx = standings.findIndex(r => r.isPlayer) + 1;
+            document.getElementById('hudPosition').innerHTML = `${posIdx}<span class="text-lg sm:text-2xl text-red-200">/8</span>`;
+
+            // Draw Live Minimap
+            drawMinimap();
+        }
+
+        function drawLeanGauge(leanDeg) {
+            const w = leanCanvas.width;
+            const h = leanCanvas.height;
+            leanCtx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h - 8;
+            const r = 24;
+
+            // Background arc (-65° to +65°)
+            leanCtx.beginPath();
+            leanCtx.arc(cx, cy, r, Math.PI * 1.12, Math.PI * 1.88);
+            leanCtx.strokeStyle = '#334155';
+            leanCtx.lineWidth = 6;
+            leanCtx.lineCap = 'round';
+            leanCtx.stroke();
+
+            // Active lean arc from top center (-90 deg = 1.5 PI)
+            const startAngle = Math.PI * 1.5;
+            const endAngle = startAngle + (leanDeg / 90) * (Math.PI * 0.5);
+            leanCtx.beginPath();
+            leanCtx.arc(cx, cy, r, Math.min(startAngle, endAngle), Math.max(startAngle, endAngle));
+            leanCtx.strokeStyle = Math.abs(leanDeg) >= 50 ? '#facc15' : '#ef4444';
+            leanCtx.lineWidth = 6;
+            leanCtx.lineCap = 'round';
+            leanCtx.stroke();
+
+            // Needle representing bike tilt
+            const rad = (leanDeg * Math.PI) / 180;
+            leanCtx.save();
+            leanCtx.translate(cx, cy);
+            leanCtx.rotate(rad);
+            leanCtx.beginPath();
+            leanCtx.moveTo(0, 4);
+            leanCtx.lineTo(0, -r - 3);
+            leanCtx.strokeStyle = '#ffffff';
+            leanCtx.lineWidth = 2.5;
+            leanCtx.stroke();
+            leanCtx.restore();
+        }
+
+        function drawMinimap() {
+            const w = minimapCanvas.width;
+            const h = minimapCanvas.height;
+            minimapCtx.clearRect(0, 0, w, h);
+            if (minimapPoints.length === 0) return;
+
+            const pad = 12;
+            const drawW = w - pad * 2;
+            const drawH = h - pad * 2;
+
+            // Draw Track Outline
+            minimapCtx.beginPath();
+            for (let i = 0; i < minimapPoints.length; i += 4) {
+                const pt = minimapPoints[i];
+                const px = pad + pt.nx * drawW;
+                const py = pad + pt.ny * drawH;
+                if (i === 0) minimapCtx.moveTo(px, py);
+                else minimapCtx.lineTo(px, py);
+            }
+            minimapCtx.closePath();
+            minimapCtx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+            minimapCtx.lineWidth = 5;
+            minimapCtx.stroke();
+
+            minimapCtx.strokeStyle = '#e2e8f0';
+            minimapCtx.lineWidth = 2;
+            minimapCtx.stroke();
+
+            // Start/Finish marker at segment 18
+            const sfPt = minimapPoints[18] || minimapPoints[0];
+            minimapCtx.fillStyle = '#ffffff';
+            minimapCtx.fillRect(pad + sfPt.nx * drawW - 3, pad + sfPt.ny * drawH - 3, 6, 6);
+
+            // Draw AI Riders
+            for (let i = 0; i < aiRiders.length; i++) {
+                const idx = Math.floor(aiRiders[i].z / SEGMENT_LENGTH) % minimapPoints.length;
+                const pt = minimapPoints[idx];
+                minimapCtx.beginPath();
+                minimapCtx.arc(pad + pt.nx * drawW, pad + pt.ny * drawH, 3.2, 0, Math.PI * 2);
+                minimapCtx.fillStyle = aiRiders[i].team.primary;
+                minimapCtx.fill();
+                minimapCtx.strokeStyle = '#0f172a';
+                minimapCtx.lineWidth = 1;
+                minimapCtx.stroke();
+            }
+
+            // Draw Player Dot (Highlighted pulsing dot)
+            const pIdx = Math.floor(player.z / SEGMENT_LENGTH) % minimapPoints.length;
+            const pPt = minimapPoints[pIdx];
+            const px = pad + pPt.nx * drawW;
+            const py = pad + pPt.ny * drawH;
+
+            minimapCtx.beginPath();
+            minimapCtx.arc(px, py, 5, 0, Math.PI * 2);
+            minimapCtx.fillStyle = '#22ff66';
+            minimapCtx.fill();
+            minimapCtx.strokeStyle = '#ffffff';
+            minimapCtx.lineWidth = 1.5;
+            minimapCtx.stroke();
+        }
+
+        function completeRace() {
+            gameState = 'FINISHED';
+            audio.silence();
+
+            // Estimate finish times for any AI riders still on track
+            const standings = getCurrentStandings();
+            standings.forEach((r, idx) => {
+                if (!r.finished) {
+                    const remainingDist = Math.max(200, (TOTAL_LAPS * trackLength + 18 * SEGMENT_LENGTH) - r.progress);
+                    r.finishTime = player.finishTime + (remainingDist / (BASE_MAX_SPEED * 0.85)) + (idx * 0.42);
+                }
+            });
+
+            const playerRank = standings.findIndex(r => r.isPlayer) + 1;
+            const titleEl = document.getElementById('finishTitle');
+            const badgeEl = document.getElementById('finishBadge');
+
+            if (playerRank === 1) {
+                titleEl.textContent = 'GRAND PRIX VICTORY!';
+                badgeEl.innerHTML = '<span class="motogp-unskew">🏆 P1 WINNER</span>';
+                badgeEl.className = 'motogp-skew bg-amber-400 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+            } else if (playerRank <= 3) {
+                titleEl.textContent = 'PODIUM FINISH!';
+                badgeEl.innerHTML = `<span class="motogp-unskew">🥈 P${playerRank} PODIUM</span>`;
+                badgeEl.className = 'motogp-skew bg-slate-200 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+            } else {
+                titleEl.textContent = 'CHECKERED FLAG!';
+                badgeEl.innerHTML = `<span class="motogp-unskew">POS P${playerRank} / 8</span>`;
+                badgeEl.className = 'motogp-skew bg-red-600 text-white px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+            }
+
+            document.getElementById('resTotalTime').textContent = formatLapTime(player.finishTime);
+            document.getElementById('resBestLap').textContent = formatLapTime(player.bestLapTime);
+            document.getElementById('resTopSpeed').textContent = `${player.topSpeedRecorded} KM/H`;
+            document.getElementById('resMaxLean').textContent = `${player.maxLeanRecorded}°`;
+
+            const listEl = document.getElementById('standingsList');
+            listEl.innerHTML = '';
+            const leaderTime = standings[0].finishTime;
+
+            standings.forEach((r, idx) => {
+                const pos = idx + 1;
+                const gap = idx === 0 ? formatLapTime(r.finishTime) : `+${(r.finishTime - leaderTime).toFixed(3)}s`;
+                const row = document.createElement('div');
+                row.className = `grid grid-cols-12 items-center px-3 py-2.5 ${
+                    r.isPlayer ? 'bg-red-600/25 font-bold text-white' : 'text-slate-300'
+                }`;
+                row.innerHTML = `
+                    <div class="col-span-2 flex items-center gap-1.5">
+                        <span class="font-teko text-xl w-6 text-center rounded ${pos === 1 ? 'bg-amber-400 text-black' : 'bg-slate-800 text-white'}">${pos}</span>
+                    </div>
+                    <div class="col-span-5 flex items-center gap-2">
+                        <span class="w-1.5 h-5 rounded-sm" style="background:${r.team.primary}"></span>
+                        <span class="font-teko text-lg px-1.5 bg-slate-800 rounded text-white">#${r.riderNum}</span>
+                        <span>${r.riderName} ${r.isPlayer ? '<span class="text-[10px] text-amber-300 ml-1">(YOU)</span>' : ''}</span>
+                    </div>
+                    <div class="col-span-3 text-slate-400 truncate">${r.team.name}</div>
+                    <div class="col-span-2 text-right font-mono">${gap}</div>
+                `;
+                listEl.appendChild(row);
+            });
+
+            document.getElementById('resultsScreen').classList.remove('hidden');
+        }
+
+        /********************************************************************
+         * 7. PSEUDO-3D ROAD, SCENERY & MOTORCYCLE RENDERING ENGINE
+         ********************************************************************/
+        function project(p, cameraX, cameraY, cameraZ, width, height, roadWidth) {
+            p.camera.x = (p.world.x || 0) - cameraX;
+            p.camera.y = (p.world.y || 0) - cameraY;
+            p.camera.z = (p.world.z || 0) - cameraZ;
+            const safeZ = Math.max(1, p.camera.z);
+            p.screen.scale = CAMERA_DEPTH / safeZ;
+            p.screen.x = Math.round((width / 2) + (p.screen.scale * p.camera.x * width / 2));
+            p.screen.y = Math.round((height / 2) - (p.screen.scale * p.camera.y * height / 2));
+            p.screen.w = Math.round((p.screen.scale * roadWidth * width / 2));
+        }
+
+        function drawPolygon(x1, y1, x2, y2, x3, y3, x4, y4, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x3, y3);
+            ctx.lineTo(x4, y4);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function renderSkyAndMountains(w, h, horizonY) {
+            // Tuscan Grand Prix Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#0f2547');
+            skyGrad.addColorStop(0.55, '#2563eb');
+            skyGrad.addColorStop(1, '#93c5fd');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, horizonY + 20);
+
+            // Sun Glare
+            const sunX = ((w * 0.72 + skyOffset * 0.3) % (w + 200) + (w + 200)) % (w + 200) - 100;
+            const sunGrad = ctx.createRadialGradient(sunX, horizonY * 0.35, 8, sunX, horizonY * 0.35, 130);
+            sunGrad.addColorStop(0, 'rgba(255, 255, 240, 0.95)');
+            sunGrad.addColorStop(0.3, 'rgba(253, 224, 71, 0.35)');
+            sunGrad.addColorStop(1, 'rgba(253, 224, 71, 0)');
+            ctx.fillStyle = sunGrad;
+            ctx.fillRect(0, 0, w, horizonY);
+
+            // High Altitude Clouds
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+            for (let i = 0; i < 7; i++) {
+                const cx = ((i * 260 + skyOffset * 0.6) % (w + 300) + (w + 300)) % (w + 300) - 150;
+                const cy = horizonY * (0.22 + (i % 3) * 0.14);
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, 85, 16, 0, 0, Math.PI * 2);
+                ctx.ellipse(cx + 35, cy - 8, 55, 14, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Distant Apennine Mountains (Parallax Layer 1)
+            ctx.fillStyle = '#1e3a5f';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY + 5);
+            for (let x = 0; x <= w + 80; x += 60) {
+                const worldX = x - skyOffset;
+                const peak = Math.sin(worldX * 0.004) * 52 + Math.cos(worldX * 0.009) * 28 + 55;
+                ctx.lineTo(x, horizonY - peak);
+            }
+            ctx.lineTo(w, horizonY + 5);
+            ctx.closePath();
+            ctx.fill();
+
+            // Closer Green Tuscan Foothills (Parallax Layer 2)
+            ctx.fillStyle = '#14532d';
+            ctx.beginPath();
+            ctx.moveTo(0, horizonY + 5);
+            for (let x = 0; x <= w + 60; x += 45) {
+                const worldX = x - hillOffset;
+                const hill = Math.sin(worldX * 0.007) * 24 + Math.cos(worldX * 0.015) * 14 + 24;
+                ctx.lineTo(x, horizonY - hill);
+            }
+            ctx.lineTo(w, horizonY + 5);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function renderSegmentGround(w, seg) {
+            const p1 = seg.p1.screen;
+            const p2 = seg.p2.screen;
+            const isDark = seg.color === 'dark';
+
+            // 1. Outer Grass & Gravel Traps
+            const grassColor = isDark ? '#15602c' : '#196f34';
+            ctx.fillStyle = grassColor;
+            ctx.fillRect(0, p2.y, w, p1.y - p2.y);
+
+            // Gravel traps on outside of corners
+            if (Math.abs(seg.curve) > 2.2) {
+                const gravelColor = isDark ? '#c2b280' : '#cbbd8d';
+                const g1 = p1.w * 2.1;
+                const g2 = p2.w * 2.1;
+                drawPolygon(p1.x - g1, p1.y, p1.x + g1, p1.y, p2.x + g2, p2.y, p2.x - g2, p2.y, gravelColor);
+            }
+
+            // 2. Red-and-White MotoGP Apex Kerbs (Rumble Strips)
+            const kerbW1 = p1.w * 1.18;
+            const kerbW2 = p2.w * 1.18;
+            const kerbColor = isDark ? '#e10600' : '#f8fafc';
+            drawPolygon(p1.x - kerbW1, p1.y, p1.x - p1.w, p1.y, p2.x - p2.w, p2.y, p2.x - kerbW2, p2.y, kerbColor);
+            drawPolygon(p1.x + p1.w, p1.y, p1.x + kerbW1, p1.y, p2.x + kerbW2, p2.y, p2.x + p2.w, p2.y, kerbColor);
+
+            // Green runoff astroturf outside kerbs
+            const turfW1 = p1.w * 1.25;
+            const turfW2 = p2.w * 1.25;
+            const turfColor = isDark ? '#059669' : '#10b981';
+            drawPolygon(p1.x - turfW1, p1.y, p1.x - kerbW1, p1.y, p2.x - kerbW2, p2.y, p2.x - turfW2, p2.y, turfColor);
+            drawPolygon(p1.x + kerbW1, p1.y, p1.x + turfW1, p1.y, p2.x + turfW2, p2.y, p2.x + kerbW2, p2.y, turfColor);
+
+            // 3. Racing Asphalt Surface
+            const asphaltColor = isDark ? '#262b36' : '#2d3340';
+            drawPolygon(p1.x - p1.w, p1.y, p1.x + p1.w, p1.y, p2.x + p2.w, p2.y, p2.x - p2.w, p2.y, asphaltColor);
+
+            // Dark racing line rubber groove in middle of track
+            const grooveW1 = p1.w * 0.42;
+            const grooveW2 = p2.w * 0.42;
+            const grooveColor = isDark ? '#1e222b' : '#232833';
+            drawPolygon(p1.x - grooveW1, p1.y, p1.x + grooveW1, p1.y, p2.x + grooveW2, p2.y, p2.x - grooveW2, p2.y, grooveColor);
+
+            // White Track Boundary Sidelines
+            const lineW1 = Math.max(2, p1.w * 0.03);
+            const lineW2 = Math.max(1, p2.w * 0.03);
+            drawPolygon(p1.x - p1.w, p1.y, p1.x - p1.w + lineW1, p1.y, p2.x - p2.w + lineW2, p2.y, p2.x - p2.w, p2.y, '#e2e8f0');
+            drawPolygon(p1.x + p1.w - lineW1, p1.y, p1.x + p1.w, p1.y, p2.x + p2.w, p2.y, p2.x + p2.w - lineW2, p2.y, '#e2e8f0');
+
+            // Start / Finish Checkered Line at Segment 18
+            if (seg.index === 18 || seg.index === 19) {
+                const numChecks = 10;
+                for (let c = 0; c < numChecks; c++) {
+                    const f1 = -1 + (c / numChecks) * 2;
+                    const f2 = -1 + ((c + 1) / numChecks) * 2;
+                    const checkColor = (c + seg.index) % 2 === 0 ? '#ffffff' : '#090b10';
+                    drawPolygon(
+                        p1.x + p1.w * f1, p1.y,
+                        p1.x + p1.w * f2, p1.y,
+                        p2.x + p2.w * f2, p2.y,
+                        p2.x + p2.w * f1, p2.y,
+                        checkColor
+                    );
+                }
+            }
+        }
+
+        function renderTracksideSprite(w, h, seg, sprite) {
+            const scale = seg.p1.screen.scale;
+            const roadW = seg.p1.screen.w;
+            const sx = seg.p1.screen.x + (sprite.offset * roadW);
+            const sy = seg.p1.screen.y;
+
+            if (sy <= seg.clip && sprite.type !== 'gantry') return;
+
+            ctx.save();
+            // Clip anything below hill crest occlusion line
+            if (seg.clip < h) {
+                ctx.beginPath();
+                ctx.rect(0, 0, w, seg.clip);
+                ctx.clip();
+            }
+
+            if (sprite.type === 'tree' || sprite.type === 'cypress') {
+                const treeW = Math.max(4, roadW * (sprite.type === 'cypress' ? 0.25 : 0.48));
+                const treeH = Math.max(8, treeW * (sprite.type === 'cypress' ? 3.2 : 1.75));
+                // Trunk
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(sx - treeW * 0.12, sy - treeH * 0.25, treeW * 0.24, treeH * 0.25);
+                // Foliage
+                ctx.fillStyle = sprite.type === 'cypress' ? '#064e3b' : '#14532d';
+                ctx.beginPath();
+                ctx.ellipse(sx, sy - treeH * 0.6, treeW * 0.5, treeH * 0.45, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (sprite.type === 'billboard') {
+                const bw = Math.max(12, roadW * 0.68);
+                const bh = bw * 0.34;
+                // Posts
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(sx - bw * 0.38, sy - bh * 0.3, bw * 0.06, bh * 0.3);
+                ctx.fillRect(sx + bw * 0.32, sy - bh * 0.3, bw * 0.06, bh * 0.3);
+                // Board
+                ctx.fillStyle = '#e10600';
+                ctx.fillRect(sx - bw / 2, sy - bh * 1.25, bw, bh);
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = Math.max(1, bw * 0.03);
+                ctx.strokeRect(sx - bw / 2, sy - bh * 1.25, bw, bh);
+                if (bw > 35) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.round(bh * 0.52)}px "Chakra Petch", sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(sprite.label || 'MotoGP', sx, sy - bh * 0.62);
+                }
+            } else if (sprite.type === 'chevron') {
+                const cw = Math.max(8, roadW * 0.25);
+                const ch = cw * 0.65;
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(sx - cw / 2, sy - ch, cw, ch);
+                ctx.fillStyle = '#facc15';
+                ctx.font = `bold ${Math.round(ch * 0.75)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText(sprite.dir > 0 ? '>>>' : '<<<', sx, sy - ch * 0.22);
+            } else if (sprite.type === 'grandstand') {
+                const gw = Math.max(20, roadW * 1.15);
+                const gh = gw * 0.52;
+                // Tiered structure
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(sx - gw / 2, sy - gh, gw, gh);
+                // Roof canopy
+                ctx.fillStyle = '#e10600';
+                ctx.fillRect(sx - gw * 0.52, sy - gh * 1.1, gw * 1.04, gh * 0.14);
+                // Colorful crowd dots
+                if (gw > 35) {
+                    const colors = ['#ef4444', '#facc15', '#3b82f6', '#ffffff', '#22c55e'];
+                    for (let r = 0; r < 3; r++) {
+                        ctx.fillStyle = colors[(seg.index + r) % colors.length];
+                        ctx.fillRect(sx - gw * 0.44, sy - gh * (0.28 + r * 0.24), gw * 0.88, gh * 0.12);
+                    }
+                }
+            } else if (sprite.type === 'pitbuilding') {
+                const pw = Math.max(16, roadW * 0.85);
+                const ph = pw * 0.65;
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(sx - pw / 2, sy - ph, pw, ph);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(sx - pw * 0.44, sy - ph * 0.78, pw * 0.88, ph * 0.28);
+            } else if (sprite.type === 'gantry') {
+                // Overhead Start/Finish & Sector Bridge spanning entire track
+                const leftX = seg.p1.screen.x - roadW * 1.25;
+                const rightX = seg.p1.screen.x + roadW * 1.25;
+                const spanW = rightX - leftX;
+                const bridgeH = Math.max(16, roadW * 0.78);
+                const bannerH = bridgeH * 0.34;
+                const pillarW = Math.max(4, roadW * 0.1);
+
+                // Left & Right Towers
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(leftX - pillarW, sy - bridgeH, pillarW, bridgeH);
+                ctx.fillRect(rightX, sy - bridgeH, pillarW, bridgeH);
+
+                // Overhead Truss Banner
+                ctx.fillStyle = '#090b10';
+                ctx.fillRect(leftX - pillarW, sy - bridgeH, spanW + pillarW * 2, bannerH);
+                ctx.fillStyle = '#e10600';
+                ctx.fillRect(leftX - pillarW, sy - bridgeH, spanW + pillarW * 2, bannerH * 0.22);
+
+                if (spanW > 90) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.max(9, Math.round(bannerH * 0.45))}px "Chakra Petch", sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(sprite.text || 'MotoGP™', seg.p1.screen.x, sy - bridgeH + bannerH * 0.7);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        /**
+         * Procedural High-Detail MotoGP Bike & Leaning Rider Renderer
+         * Supports both Player Bike (foreground) and AI Riders (scaled in 3D space)
+         */
+        function drawMotorcycleAndRider(screenX, screenY, scaleFactor, leanDeg, team, riderNum, isPlayer, clipY) {
+            if (screenY <= 10 || scaleFactor <= 0.04) return;
+
+            ctx.save();
+            if (clipY !== undefined) {
+                ctx.beginPath();
+                ctx.rect(0, 0, canvas.width, clipY);
+                ctx.clip();
+            }
+
+            ctx.translate(screenX, screenY);
+            ctx.scale(scaleFactor, scaleFactor);
+
+            // Ground Contact Shadow (stays flat on asphalt while bike leans)
+            const leanNorm = leanDeg / 63; // -1 to +1
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+            ctx.beginPath();
+            ctx.ellipse(leanNorm * 34, -4, 46 + Math.abs(leanNorm) * 18, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Rotate Bike & Rider around Rear Tire Contact Patch!
+            const leanRad = (leanDeg * Math.PI) / 180;
+            ctx.rotate(leanRad * 0.85);
+
+            // 1. Rear Slick Tire (Michelin Power Slick)
+            ctx.fillStyle = '#111318';
+            ctx.beginPath();
+            ctx.roundRect(-24, -66, 48, 66, 20);
+            ctx.fill();
+
+            // Tire tread highlight & rim edge
+            ctx.strokeStyle = '#272b36';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(-19, -62, 38, 58, 16);
+            ctx.stroke();
+
+            // Glowing Carbon Brake Disc & Swingarm
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(-28, -42, 7, 22);
+            ctx.fillRect(21, -42, 7, 22);
+
+            // Twin Under-Tail / Side Exhaust Pipes
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(22, -55, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#090b10';
+            ctx.beginPath();
+            ctx.arc(22, -55, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Exhaust Backfire / Aero Boost Flame
+            if (isPlayer && (player.exhaustFlame > 0.1 || player.isBoosting)) {
+                const flameH = player.isBoosting ? 28 + Math.random() * 18 : 18 * player.exhaustFlame;
+                ctx.fillStyle = player.isBoosting ? '#38bdf8' : '#f97316';
+                ctx.beginPath();
+                ctx.moveTo(17, -55);
+                ctx.lineTo(22, -55 - flameH);
+                ctx.lineTo(27, -55);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // 2. MotoGP Aero Fairing & Tail Cowl
+            ctx.fillStyle = team.primary;
+            ctx.beginPath();
+            ctx.moveTo(-34, -52);
+            ctx.lineTo(-42, -98);
+            ctx.lineTo(-22, -132);
+            ctx.lineTo(22, -132);
+            ctx.lineTo(42, -98);
+            ctx.lineTo(34, -52);
+            ctx.closePath();
+            ctx.fill();
+
+            // Secondary Livery Accents
+            ctx.fillStyle = team.secondary;
+            ctx.beginPath();
+            ctx.moveTo(-26, -54);
+            ctx.lineTo(-32, -92);
+            ctx.lineTo(32, -92);
+            ctx.lineTo(26, -54);
+            ctx.closePath();
+            ctx.fill();
+
+            // Downforce Aero Winglets on Fairing Sides
+            ctx.fillStyle = '#111318';
+            ctx.beginPath();
+            ctx.moveTo(-40, -98);
+            ctx.lineTo(-55, -92);
+            ctx.lineTo(-52, -84);
+            ctx.lineTo(-38, -88);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(40, -98);
+            ctx.lineTo(55, -92);
+            ctx.lineTo(52, -84);
+            ctx.lineTo(38, -88);
+            ctx.closePath();
+            ctx.fill();
+
+            // 3. Rider Body Hanging Off Inside of Turn (Knee-Down & Elbow-Down Pose!)
+            const hangOffX = leanNorm * 28; // Rider shifts hips and torso inside the corner
+            ctx.save();
+            ctx.translate(hangOffX, 0);
+
+            // Inside Knee Sticking Out Toward Apex Kerb
+            if (Math.abs(leanDeg) > 12) {
+                const kneeSide = Math.sign(leanDeg);
+                const kneeExt = Math.min(1, Math.abs(leanDeg) / 50);
+                ctx.fillStyle = team.suitColor;
+                ctx.beginPath();
+                ctx.moveTo(kneeSide * 10, -72);
+                ctx.lineTo(kneeSide * (24 + kneeExt * 24), -44 + kneeExt * 12);
+                ctx.lineTo(kneeSide * 16, -42);
+                ctx.closePath();
+                ctx.fill();
+
+                // Neon Knee Slider Puck
+                ctx.fillStyle = Math.abs(leanDeg) >= 50 ? '#fde047' : team.accent;
+                ctx.beginPath();
+                ctx.arc(kneeSide * (24 + kneeExt * 24), -44 + kneeExt * 12, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Rider Leather Suit Torso & Aero Hump
+            ctx.fillStyle = team.suitColor;
+            ctx.beginPath();
+            ctx.ellipse(0, -96, 26, 30, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Racing Suit Shoulder & Spine Stripes
+            ctx.fillStyle = team.accent;
+            ctx.fillRect(-22, -108, 44, 7);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(-5, -118, 10, 38);
+
+            // Rider Arms & Elbows Reaching to Clip-on Handlebars
+            ctx.strokeStyle = team.suitColor;
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-22, -108);
+            ctx.lineTo(-34 - hangOffX * 0.4, -120);
+            ctx.moveTo(22, -108);
+            ctx.lineTo(34 - hangOffX * 0.4, -120);
+            ctx.stroke();
+
+            // Rider Helmet (Tucked behind aero windscreen)
+            ctx.fillStyle = team.helmetColor;
+            ctx.beginPath();
+            ctx.arc(leanNorm * 6, -124, 17, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Helmet Visor / Graphics Strip
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(leanNorm * 6 - 13, -131, 26, 8);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(leanNorm * 6 - 4, -140, 8, 16);
+
+            ctx.restore();
+
+            // 4. Tail Cowl & Rider Race Number Plate
+            ctx.fillStyle = team.primary;
+            ctx.beginPath();
+            ctx.roundRect(-17, -86, 34, 28, 7);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 17px "Teko", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(riderNum, 0, -66);
+
+            // Rear Rain / Telemetry Safety LED Light (Flashes at high RPM or braking)
+            ctx.fillStyle = (keys.down && isPlayer) ? '#ff0000' : '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, -54, (keys.down && isPlayer) ? 4.5 : 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function renderScene() {
+            const w = canvas.width;
+            const h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            if (segments.length === 0) return;
+
+            const baseSegment = segments[Math.floor(player.z / SEGMENT_LENGTH) % segments.length];
+            const basePercent = (player.z % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+            const playerY = easeInOut(baseSegment.p1.world.y, baseSegment.p2.world.y, basePercent);
+
+            const cameraX = player.x * ROAD_WIDTH;
+            const cameraY = playerY + CAMERA_HEIGHT;
+            const cameraZ = player.z;
+
+            // Optional Subtle Onboard Gyro Horizon Roll
+            ctx.save();
+            if (gyroCamEnabled && (gameState === 'RACING' || gameState === 'COUNTDOWN')) {
+                const camRoll = (-player.leanAngle * 0.14 * Math.PI) / 180;
+                ctx.translate(w / 2, h / 2);
+                ctx.rotate(camRoll);
+                ctx.translate(-w / 2, -h / 2);
+            }
+
+            // 1. Render Sky, Sun & Parallax Mountains
+            const horizonY = h * 0.48;
+            renderSkyAndMountains(w, h, horizonY);
+            // Base ground fill below horizon
+            ctx.fillStyle = '#15602c';
+            ctx.fillRect(0, horizonY, w, h - horizonY);
+
+            // 2. Project & Render Road Segments Front-to-Back with Horizon Clipping (maxy)
+            let maxy = h + 120;
+            let x = 0;
+            let dx = -(baseSegment.curve * basePercent);
+
+            const visibleSegments = [];
+
+            for (let n = 0; n < DRAW_DISTANCE; n++) {
+                const seg = segments[(baseSegment.index + n) % segments.length];
+                const looped = seg.index < baseSegment.index;
+                const loopOffsetZ = looped ? trackLength : 0;
+
+                project(seg.p1, cameraX - x, cameraY, cameraZ - loopOffsetZ, w, h, ROAD_WIDTH);
+                project(seg.p2, cameraX - x - dx, cameraY, cameraZ - loopOffsetZ, w, h, ROAD_WIDTH);
+
+                x += dx;
+                dx += seg.curve;
+
+                seg.clip = maxy;
+                visibleSegments.push(seg);
+
+                if (seg.p1.camera.z <= CAMERA_DEPTH || seg.p2.screen.y >= seg.p1.screen.y || seg.p2.screen.y >= maxy) {
+                    continue;
+                }
+
+                renderSegmentGround(w, seg);
+                maxy = seg.p2.screen.y;
+            }
+
+            // 3. Render Scenery Sprites & AI MotoGP Riders Back-to-Front (Painter's Algorithm)
+            for (let n = visibleSegments.length - 1; n >= 1; n--) {
+                const seg = visibleSegments[n];
+
+                // Trackside Scenery
+                for (let s = 0; s < seg.sprites.length; s++) {
+                    renderTracksideSprite(w, h, seg, seg.sprites[s]);
+                }
+
+                // AI Riders on this segment
+                for (let r = 0; r < seg.riders.length; r++) {
+                    const ai = seg.riders[r];
+                    const perc = (ai.z % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+                    const interpX = seg.p1.screen.x + (seg.p2.screen.x - seg.p1.screen.x) * perc;
+                    const interpY = seg.p1.screen.y + (seg.p2.screen.y - seg.p1.screen.y) * perc;
+                    const interpW = seg.p1.screen.w + (seg.p2.screen.w - seg.p1.screen.w) * perc;
+
+                    const aiScreenX = interpX + ai.x * interpW;
+                    const bikeScale = (interpW / 320);
+
+                    drawMotorcycleAndRider(
+                        aiScreenX,
+                        interpY,
+                        bikeScale,
+                        ai.leanAngle,
+                        ai.team,
+                        ai.riderNum,
+                        false,
+                        seg.clip
+                    );
+
+                    // Floating Broadcast Rider Tag above nearby AI riders
+                    if (n < 38 && bikeScale > 0.25 && interpY <= seg.clip) {
+                        const tagY = interpY - 155 * bikeScale;
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(9, 11, 16, 0.85)';
+                        ctx.fillRect(aiScreenX - 34, tagY - 14, 68, 16);
+                        ctx.fillStyle = ai.team.primary;
+                        ctx.fillRect(aiScreenX - 34, tagY - 14, 5, 16);
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold 10px "Chakra Petch", sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`#${ai.riderNum} ${ai.riderName.slice(0, 3)}`, aiScreenX + 2, tagY - 3);
+                        ctx.restore();
+                    }
+                }
+            }
+
+            // 4. High-Speed Wind / Aero Speed Lines Effect at > 290 km/h
+            const speedRatio = player.speed / player.maxSpeed;
+            if (speedRatio > 0.78) {
+                const intensity = (speedRatio - 0.78) / 0.22;
+                ctx.strokeStyle = player.isBoosting
+                    ? `rgba(56, 189, 248, ${intensity * 0.45})`
+                    : `rgba(255, 255, 255, ${intensity * 0.28})`;
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI + Math.PI;
+                    const r1 = Math.min(w, h) * (0.32 + ((Date.now() * 0.004 + i) % 0.25));
+                    const r2 = r1 + 95;
+                    ctx.beginPath();
+                    ctx.moveTo(w / 2 + Math.cos(angle) * r1, h * 0.55 + Math.sin(angle) * r1);
+                    ctx.lineTo(w / 2 + Math.cos(angle) * r2, h * 0.55 + Math.sin(angle) * r2);
+                    ctx.stroke();
+                }
+            }
+
+            ctx.restore(); // End Gyro Horizon Roll transform
+
+            // 5. Render Player Motorcycle & Rider in Foreground
+            const bikeBaseX = w / 2;
+            const bikeBaseY = h - (w < 640 ? 118 : 108);
+            const playerScale = Math.min(1.38, Math.max(0.85, w / 960));
+            const kerbBounce = player.onKerb ? Math.sin(Date.now() * 0.06) * 3.5 : 0;
+
+            drawMotorcycleAndRider(
+                bikeBaseX,
+                bikeBaseY + kerbBounce,
+                playerScale,
+                player.leanAngle,
+                player.team,
+                player.team.riderNum,
+                true
+            );
+
+            // 6. Render Foreground Sparks & Tire Smoke Particles
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                const alpha = Math.max(0, p.life / p.maxLife);
+                const px = bikeBaseX + p.x * playerScale;
+                const py = bikeBaseY + p.y * playerScale;
+
+                if (p.type === 'spark') {
+                    ctx.strokeStyle = p.color;
+                    ctx.globalAlpha = alpha;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(px - p.vx * 0.025, py - p.vy * 0.025);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                } else {
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = alpha;
+                    ctx.beginPath();
+                    ctx.arc(px, py, p.size * (1.2 - alpha * 0.5), 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+            }
+        }
+
+        /********************************************************************
+         * 8. CONTROLS, EVENT LISTENERS & MAIN ANIMATION LOOP
+         ********************************************************************/
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Keyboard Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                keys.boost = true;
+                if (gameState === 'RACING') e.preventDefault();
+            }
+            if (e.code === 'KeyM') toggleAudioMute();
+            if (e.code === 'KeyC') toggleGyroCam();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.boost = false;
+        });
+
+        // Touch & Mouse Button Bindings for On-Screen Controls
+        function bindTouchButton(btnId, keyName) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            const activate = (e) => {
+                e.preventDefault();
+                audio.init();
+                audio.resume();
+                keys[keyName] = true;
+                btn.classList.add('active');
+            };
+            const deactivate = (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                btn.classList.remove('active');
+            };
+            btn.addEventListener('touchstart', activate, { passive: false });
+            btn.addEventListener('touchend', deactivate, { passive: false });
+            btn.addEventListener('touchcancel', deactivate, { passive: false });
+            btn.addEventListener('mousedown', activate);
+            btn.addEventListener('mouseup', deactivate);
+            btn.addEventListener('mouseleave', deactivate);
+        }
+
+        bindTouchButton('btnLeft', 'left');
+        bindTouchButton('btnRight', 'right');
+        bindTouchButton('btnGas', 'up');
+        bindTouchButton('btnBrake', 'down');
+        bindTouchButton('btnBoost', 'boost');
+
+        // Difficulty Selector Buttons
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                selectedDifficulty = btn.getAttribute('data-diff');
+                audio.playBeep(580, 0.07);
+                document.querySelectorAll('.diff-btn').forEach(b => {
+                    b.className = 'diff-btn py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500';
+                });
+                btn.className = 'diff-btn py-2 px-2 rounded-lg border text-center transition bg-red-600/25 border-red-500 text-white shadow-md';
+            });
+        });
+
+        // Audio & Gyro Cam Toggles
+        function toggleAudioMute() {
+            audio.init();
+            audio.isMuted = !audio.isMuted;
+            const icon = document.getElementById('audioIcon');
+            if (audio.isMuted) {
+                icon.className = 'fa-solid fa-volume-xmark text-rose-500';
+            } else {
+                icon.className = 'fa-solid fa-volume-high text-emerald-400';
+            }
+        }
+
+        function toggleGyroCam() {
+            gyroCamEnabled = !gyroCamEnabled;
+            document.getElementById('camModeLabel').textContent = `GYRO CAM: ${gyroCamEnabled ? 'ON' : 'OFF'}`;
+        }
+
+        document.getElementById('btnAudioToggle').addEventListener('click', toggleAudioMute);
+        document.getElementById('btnCameraToggle').addEventListener('click', toggleGyroCam);
+
+        document.getElementById('btnMenuReturn').addEventListener('click', () => {
+            gameState = 'MENU';
+            audio.silence();
+            document.getElementById('hudOverlay').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+        });
+
+        function launchGrandPrix() {
+            audio.init();
+            audio.resume();
+            setupGrid();
+
+            // Reset 5 Red Start Lights UI
+            const lightsPanel = document.getElementById('startLightsPanel');
+            lightsPanel.classList.remove('opacity-0');
+            document.querySelectorAll('.start-light').forEach(l => {
+                l.className = 'start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner';
+            });
+
+            countdownTimer = 0;
+            countdownStep = 0;
+            gameState = 'COUNTDOWN';
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById('hudOverlay').classList.remove('hidden');
+            showRaceBanner('HOLD THROTTLE FOR LAUNCH CONTROL!', 2800);
+        }
+
+        document.getElementById('btnStartRace').addEventListener('click', launchGrandPrix);
+        document.getElementById('btnRestartRace').addEventListener('click', launchGrandPrix);
+        document.getElementById('btnChangeBike').addEventListener('click', () => {
+            gameState = 'MENU';
+            audio.silence();
+            document.getElementById('hudOverlay').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+        });
+
+        // Main Game Loop
+        let lastFrameTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+            lastFrameTime = now;
+
+            if (gameState === 'MENU') {
+                // Attract mode camera cruising along the Mugello circuit in the background
+                player.z = (player.z + BASE_MAX_SPEED * 0.42 * dt) % trackLength;
+                const seg = segments[Math.floor(player.z / SEGMENT_LENGTH) % segments.length];
+                player.leanAngle += (seg.curve * 7.5 - player.leanAngle) * 4 * dt;
+                skyOffset = (skyOffset - seg.curve * 0.3) % 1200;
+                hillOffset = (hillOffset - seg.curve * 0.6) % 1200;
+            } else {
+                updatePhysics(dt);
+            }
+
+            renderScene();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start Everything on Window Load
+        window.onload = function () {
+            buildCircuit();
+            renderTeamCards();
+            setupGrid();
+            requestAnimationFrame(gameLoop);
+        };
+    </script>
+</body>
+</html>
