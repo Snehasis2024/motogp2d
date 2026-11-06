@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MotoGP™ Grand Prix Championship</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,700&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --motogp-red: #e10600; }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #07090e; font-family: 'Chakra Petch', sans-serif; color: #fff; }
+        .font-teko { font-family: 'Teko', sans-serif; }
+        .motogp-skew { transform: skewX(-12deg); }
+        .motogp-unskew { transform: skewX(12deg); }
+        .carbon-bg {
+            background:
+                linear-gradient(27deg, #11141d 5px, transparent 5px) 0 5px,
+                linear-gradient(207deg, #11141d 5px, transparent 5px) 10px 0px,
+                linear-gradient(27deg, #181c29 5px, transparent 5px) 0px 10px,
+                linear-gradient(207deg, #181c29 5px, transparent 5px) 10px 5px,
+                linear-gradient(90deg, #0d1017 10px, transparent 10px),
+                linear-gradient(#131722 25%, #0f121a 25%, #0f121a 50%, transparent 50%, transparent 75%, #191e2b 75%, #191e2b);
+            background-color: #090b10; background-size: 20px 20px;
+        }
+        @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 15px rgba(225,6,0,.6);} 50% { box-shadow: 0 0 28px rgba(255,50,30,.95);} }
+        .btn-glow { animation: pulseGlow 2s infinite; }
+        @keyframes shiftFlash { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+        .shift-flash { animation: shiftFlash .12s infinite; }
+        @keyframes brakePulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .55; transform: scale(1.08);} }
+        .brake-pulse { animation: brakePulse .22s infinite; }
+        #gameCanvas { display: block; width: 100%; height: 100%; touch-action: none; }
+        .touch-btn { background: rgba(15,20,32,.65); backdrop-filter: blur(6px); border: 2px solid rgba(255,255,255,.22); transition: transform .08s ease, background .1s ease, border-color .1s ease; touch-action: none; }
+        .touch-btn:active, .touch-btn.active { transform: scale(.93); background: rgba(225,6,0,.65); border-color: #fff; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(11,13,19,.6); }
+        ::-webkit-scrollbar-thumb { background: #e10600; border-radius: 3px; }
+        .opt-btn.sel { background: rgba(225,6,0,.25); border-color: #ef4444; color: #fff; }
+    </style>
+</head>
+<body class="relative w-full h-full overflow-hidden select-none">
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- ================= HUD ================= -->
+<div id="hudOverlay" class="hidden pointer-events-none absolute inset-0 flex flex-col justify-between p-2 sm:p-4 z-20">
+    <div class="flex items-start justify-between w-full gap-2">
+        <!-- Left -->
+        <div class="flex flex-col gap-1.5">
+            <div class="flex items-stretch shadow-2xl">
+                <div class="motogp-skew bg-red-600 px-3 sm:px-4 py-1 flex flex-col justify-center items-center border-l-4 border-white">
+                    <div class="motogp-unskew text-[10px] sm:text-xs font-bold tracking-widest uppercase text-red-100 leading-none">POS</div>
+                    <div class="motogp-unskew font-teko text-3xl sm:text-5xl font-bold leading-none text-white" id="hudPosition">1<span class="text-lg sm:text-2xl text-red-200">/8</span></div>
+                </div>
+                <div class="motogp-skew bg-slate-950/90 backdrop-blur-md border border-slate-700/80 px-3 sm:px-5 py-1.5 flex items-center gap-3 sm:gap-5 -ml-1">
+                    <div class="motogp-unskew flex items-center gap-2">
+                        <span id="hudTeamStripe" class="w-2 h-8 sm:h-10 rounded-sm bg-red-600 inline-block"></span>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span id="hudRiderNumber" class="font-teko text-xl sm:text-2xl font-bold px-1.5 bg-white text-black rounded leading-none">63</span>
+                                <span id="hudRiderName" class="font-bold text-xs sm:text-sm tracking-wider uppercase text-white">BAGNAIA</span>
+                            </div>
+                            <div id="hudTeamName" class="text-[10px] text-slate-400 uppercase tracking-wider">Ducati Lenovo Team</div>
+                        </div>
+                    </div>
+                    <div class="motogp-unskew h-8 w-px bg-slate-700"></div>
+                    <div class="motogp-unskew text-right">
+                        <div class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">LAP</div>
+                        <div id="hudLapCount" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none">1 / 3</div>
+                    </div>
+                </div>
+            </div>
+            <div class="motogp-skew bg-slate-950/85 backdrop-blur-md border-l-4 border-red-600 border-r border-y border-slate-800 px-3 py-1.5 grid grid-cols-3 gap-2 sm:gap-4 text-xs max-w-[310px] sm:max-w-[360px] shadow-lg">
+                <div class="motogp-unskew">
+                    <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">CURRENT</div>
+                    <div id="hudCurLap" class="font-mono font-bold text-xs sm:text-sm text-white">0:00.000</div>
+                </div>
+                <div class="motogp-unskew border-l border-slate-800 pl-2">
+                    <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-semibold">LAST LAP</div>
+                    <div id="hudLastLap" class="font-mono font-bold text-xs sm:text-sm text-amber-400">--:--.---</div>
+                </div>
+                <div class="motogp-unskew border-l border-slate-800 pl-2">
+                    <div class="text-[9px] sm:text-[10px] text-purple-400 uppercase font-semibold">BEST LAP</div>
+                    <div id="hudBestLap" class="font-mono font-bold text-xs sm:text-sm text-purple-300">--:--.---</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center -->
+        <div class="flex flex-col items-center">
+            <div id="startLightsPanel" class="bg-slate-950/95 border-2 border-slate-700 rounded-xl px-4 py-2.5 shadow-2xl flex items-center gap-2.5 sm:gap-3.5 transition-opacity duration-500">
+                <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+                <div class="start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner"></div>
+            </div>
+            <div id="raceBanner" class="mt-2 opacity-0 transition-all duration-300 transform -translate-y-2 motogp-skew bg-gradient-to-r from-red-600 via-red-500 to-amber-500 px-5 py-1 shadow-xl border border-white/30">
+                <div id="raceBannerText" class="motogp-unskew font-teko text-xl sm:text-2xl tracking-wider uppercase font-bold text-white drop-shadow whitespace-nowrap">LIGHTS OUT</div>
+            </div>
+            <div id="cornerWarn" class="mt-1.5 opacity-0 transition-opacity duration-150 motogp-skew px-4 py-0.5 bg-slate-950/85 border border-slate-600 shadow-lg">
+                <div id="cornerWarnText" class="motogp-unskew font-teko text-xl sm:text-2xl tracking-widest font-bold whitespace-nowrap">--</div>
+            </div>
+        </div>
+
+        <!-- Right -->
+        <div class="flex flex-col items-end gap-2">
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <button id="btnCameraToggle" title="Toggle Gyro Horizon Tilt (C)" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-lg transition">
+                    <i class="fa-solid fa-video text-red-500"></i>
+                    <span class="hidden sm:inline" id="camModeLabel">GYRO CAM: ON</span>
+                </button>
+                <button id="btnAudioToggle" title="Toggle Audio (M)" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 shadow-lg transition">
+                    <i id="audioIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                    <span class="hidden sm:inline" id="audioLabel">AUDIO</span>
+                </button>
+                <button id="btnPause" title="Pause (P / Esc)" class="bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold flex items-center gap-1 shadow-lg transition">
+                    <i class="fa-solid fa-pause"></i>
+                </button>
+            </div>
+            <div class="bg-slate-950/85 backdrop-blur-md border border-slate-700/80 rounded-xl p-2 shadow-2xl flex flex-col items-center">
+                <div class="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-0.5 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span> AUTODROMO MUGELLO GP
+                </div>
+                <canvas id="minimapCanvas" width="130" height="95" class="w-[105px] h-[76px] sm:w-[130px] sm:h-[95px]"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom -->
+    <div class="flex flex-col items-center w-full gap-2">
+        <div id="touchControls" class="hidden w-full flex justify-between items-end px-1 sm:px-4 pb-1 pointer-events-auto">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button id="btnLeft" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-white shadow-xl">
+                    <i class="fa-solid fa-chevron-left text-2xl sm:text-3xl"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase text-slate-300 mt-0.5">LEAN L</span>
+                </button>
+                <button id="btnRight" class="touch-btn w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-white shadow-xl">
+                    <i class="fa-solid fa-chevron-right text-2xl sm:text-3xl"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase text-slate-300 mt-0.5">LEAN R</span>
+                </button>
+            </div>
+            <div class="flex items-end gap-2 sm:gap-3">
+                <button id="btnBoost" class="touch-btn w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex flex-col items-center justify-center text-cyan-300 shadow-xl">
+                    <i class="fa-solid fa-bolt text-lg sm:text-xl"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase mt-0.5">AERO</span>
+                </button>
+                <button id="btnBrake" class="touch-btn w-14 h-16 sm:w-16 sm:h-20 rounded-2xl flex flex-col items-center justify-center text-rose-400 shadow-xl">
+                    <i class="fa-solid fa-angles-down text-xl sm:text-2xl"></i>
+                    <span class="text-[9px] font-bold tracking-wider uppercase mt-0.5">BRAKE</span>
+                </button>
+                <button id="btnGas" class="touch-btn w-16 h-20 sm:w-20 sm:h-24 rounded-2xl flex flex-col items-center justify-center text-emerald-400 shadow-xl">
+                    <i class="fa-solid fa-gauge-high text-2xl sm:text-3xl"></i>
+                    <span class="text-[10px] font-bold tracking-wider uppercase mt-1">GAS</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="motogp-skew bg-slate-950/92 backdrop-blur-md border-t-2 border-red-600 border-x border-b border-slate-700/80 px-4 sm:px-7 py-2 shadow-2xl flex items-center gap-4 sm:gap-7 max-w-full">
+            <div class="motogp-unskew flex items-center gap-2.5">
+                <div class="relative w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center">
+                    <canvas id="leanGaugeCanvas" width="72" height="60" class="w-full h-full"></canvas>
+                </div>
+                <div>
+                    <div class="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold tracking-wider">LEAN ANGLE</div>
+                    <div class="flex items-baseline gap-1">
+                        <span id="hudLeanDeg" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none">0°</span>
+                        <span id="hudLeanDir" class="text-[10px] font-bold text-red-400 uppercase">--</span>
+                    </div>
+                    <div class="text-[9px] text-slate-500">MAX: <span id="hudMaxLean" class="text-slate-300 font-bold">0°</span></div>
+                </div>
+            </div>
+            <div class="motogp-unskew h-10 w-px bg-slate-800"></div>
+            <div class="motogp-unskew flex flex-col gap-1 min-w-[175px] sm:min-w-[250px]">
+                <div class="flex items-center justify-between text-[9px] text-slate-400 font-bold tracking-widest">
+                    <span>RPM</span>
+                    <span id="hudRpmVal" class="text-slate-300 font-mono">4,200</span>
+                </div>
+                <div id="rpmBarContainer" class="w-full h-3 sm:h-3.5 bg-slate-900 rounded-sm p-0.5 flex gap-0.5 border border-slate-800"></div>
+                <div class="flex items-center justify-between mt-0.5">
+                    <div class="flex items-baseline gap-1">
+                        <span id="hudSpeed" class="font-teko text-4xl sm:text-5xl font-bold text-white leading-none tracking-tight">0</span>
+                        <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase">KM/H</span>
+                    </div>
+                    <div class="flex flex-col gap-1 w-16 sm:w-20">
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="hudThrottleBar" class="bg-emerald-500 h-full w-0"></div></div>
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div id="hudBrakeBar" class="bg-rose-500 h-full w-0"></div></div>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2.5 py-0.5 rounded">
+                        <span class="text-[9px] text-slate-400 uppercase font-bold">GEAR</span>
+                        <span id="hudGear" class="font-teko text-3xl sm:text-4xl font-bold text-amber-400 leading-none">1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="motogp-unskew h-10 w-px bg-slate-800 hidden sm:block"></div>
+            <div class="motogp-unskew hidden sm:flex flex-col gap-1 w-32">
+                <div class="flex justify-between items-center text-[9px] font-bold uppercase tracking-wider">
+                    <span class="text-cyan-400"><i class="fa-solid fa-wind mr-1"></i>AERO BOOST</span>
+                    <span id="hudBoostPct" class="text-white">100%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900 border border-slate-700 rounded-sm overflow-hidden p-0.5">
+                    <div id="hudBoostBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-400 w-full"></div>
+                </div>
+                <div class="text-[9px] text-slate-400 truncate" id="hudSurfaceStatus"><span class="text-emerald-400">●</span> ASPHALT GRIP 100%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= START SCREEN ================= -->
+<div id="startScreen" class="absolute inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+    <div class="carbon-bg border-2 border-slate-700/90 rounded-2xl max-w-4xl w-full p-4 sm:p-8 shadow-2xl my-auto relative overflow-hidden">
+        <div class="absolute -top-12 -right-12 w-52 h-52 bg-red-600/20 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-red-600 via-white to-emerald-500"></div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-5">
+            <div class="flex items-center gap-3">
+                <div class="motogp-skew bg-red-600 px-3 py-1 border-l-4 border-white shadow-lg">
+                    <span class="motogp-unskew font-teko text-3xl sm:text-4xl font-bold tracking-wider text-white">MotoGP™</span>
+                </div>
+                <div>
+                    <h1 class="font-teko text-3xl sm:text-4xl font-bold uppercase tracking-wide text-white leading-none">GRAND PRIX CHAMPIONSHIP</h1>
+                    <p class="text-xs text-slate-400 tracking-wider uppercase">Autodromo Internazionale del Mugello • Telemetry Sim</p>
+                </div>
+            </div>
+            <div class="text-xs bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-lg self-start sm:self-auto leading-tight">
+                <div class="text-amber-300 font-bold" id="seasonInfo">SEASON: 0 PTS</div>
+                <div class="text-purple-300" id="recordInfo">TRACK RECORD: --:--.---</div>
+                <button id="btnResetSeason" class="text-[10px] text-slate-500 hover:text-red-400 underline mt-0.5">reset season</button>
+            </div>
+        </div>
+
+        <div class="mb-5">
+            <div class="flex items-center justify-between mb-2.5">
+                <h2 class="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-motorcycle text-red-500"></i> 1. SELECT FACTORY MACHINE
+                </h2>
+                <span class="text-[11px] text-slate-400">1000cc V4 / Inline-4 Class</span>
+            </div>
+            <div id="teamGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div class="bg-slate-900/85 border border-slate-800 rounded-xl p-3.5">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-400"></i> 2. AI DIFFICULTY
+                </h3>
+                <div class="grid grid-cols-3 gap-2" id="difficultyButtons">
+                    <button data-diff="rookie" class="diff-btn opt-btn py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <div class="font-bold text-xs uppercase">Rookie</div>
+                        <div class="text-[10px] text-slate-400">Forgiving</div>
+                    </button>
+                    <button data-diff="pro" class="diff-btn opt-btn sel py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <div class="font-bold text-xs uppercase">Pro</div>
+                        <div class="text-[10px] text-slate-400">Balanced</div>
+                    </button>
+                    <button data-diff="legend" class="diff-btn opt-btn py-2 px-2 rounded-lg border text-center transition bg-slate-800/70 border-slate-700 text-slate-300 hover:border-slate-500">
+                        <div class="font-bold text-xs uppercase">Legend</div>
+                        <div class="text-[10px] text-slate-400">Aggressive</div>
+                    </button>
+                </div>
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mt-3.5 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-flag-checkered text-white"></i> RACE LENGTH
+                </h3>
+                <div class="grid grid-cols-3 gap-2" id="lapButtons">
+                    <button data-laps="3" class="lap-btn opt-btn sel py-1.5 rounded-lg border text-xs font-bold bg-slate-800/70 border-slate-700 text-slate-300">3 LAPS</button>
+                    <button data-laps="5" class="lap-btn opt-btn py-1.5 rounded-lg border text-xs font-bold bg-slate-800/70 border-slate-700 text-slate-300">5 LAPS</button>
+                    <button data-laps="8" class="lap-btn opt-btn py-1.5 rounded-lg border text-xs font-bold bg-slate-800/70 border-slate-700 text-slate-300">8 LAPS</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/85 border border-slate-800 rounded-xl p-3.5 flex flex-col">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mb-2.5 flex items-center gap-2">
+                    <i class="fa-solid fa-life-ring text-emerald-400"></i> 3. RIDER AIDS
+                </h3>
+                <button id="btnAssist" class="opt-btn sel py-2 px-3 rounded-lg border text-left bg-slate-800/70 border-slate-700 text-slate-300 transition">
+                    <div class="font-bold text-xs uppercase flex justify-between"><span>Brake Assist</span><span id="assistState">ON</span></div>
+                    <div class="text-[10px] text-slate-400">Eases off automatically if you carry too much speed into a corner. Turn off for full manual control.</div>
+                </button>
+                <div class="text-[11px] text-slate-400 mt-2.5 leading-snug">
+                    <i class="fa-solid fa-circle-info text-amber-400 mr-1"></i>
+                    A <b>corner warning</b> appears at the top of the screen: arrows show the direction and severity, and <b class="text-rose-400">BRAKE</b> flashes when you're too fast.
+                </div>
+            </div>
+
+            <div class="bg-slate-900/85 border border-slate-800 rounded-xl p-3.5 flex flex-col justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-slate-300 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad text-cyan-400"></i> CONTROLS
+                </h3>
+                <div class="grid grid-cols-1 gap-1.5 text-xs text-slate-300">
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white w-16 text-center">W / ↑</span><span>Throttle (rev on grid!)</span></div>
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white w-16 text-center">S / ↓</span><span>Brake</span></div>
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white w-16 text-center">A D / ← →</span><span>Lean</span></div>
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-cyan-300 w-16 text-center">SPACE</span><span>Aero boost</span></div>
+                    <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-slate-800 border border-slate-600 rounded font-mono text-[11px] text-white w-16 text-center">P / ESC</span><span>Pause · M mute · C cam</span></div>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-2">Gamepad supported: left stick, RT / LT, A for boost.</div>
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-800">
+            <div class="text-xs text-slate-400 flex items-center gap-3">
+                <span><i class="fa-solid fa-flag-checkered text-white mr-1"></i> Distance: <strong id="lapsLabel" class="text-white">3 Laps</strong></span>
+                <span>•</span>
+                <span><i class="fa-solid fa-users text-white mr-1"></i> Grid: <strong class="text-white">8 Riders</strong></span>
+            </div>
+            <button id="btnStartRace" class="w-full sm:w-auto motogp-skew bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-teko text-2xl sm:text-3xl tracking-wider uppercase px-10 py-2.5 rounded shadow-xl btn-glow transition transform hover:scale-105 cursor-pointer">
+                <span class="motogp-unskew flex items-center justify-center gap-3"><span>START GRAND PRIX</span><i class="fa-solid fa-chevron-right text-xl"></i></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= PAUSE ================= -->
+<div id="pauseScreen" class="hidden absolute inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="carbon-bg border-2 border-slate-700 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-red-600"></div>
+        <div class="font-teko text-5xl font-bold uppercase text-white leading-none mb-1">PAUSED</div>
+        <div class="text-xs text-slate-400 mb-5 uppercase tracking-widest">Red flag • Engines off</div>
+        <div class="flex flex-col gap-2.5">
+            <button id="btnResume" class="py-2.5 rounded-lg bg-red-600 hover:bg-red-500 font-bold uppercase tracking-wider text-sm"><i class="fa-solid fa-play mr-2"></i>Resume</button>
+            <button id="btnPauseRestart" class="py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 font-bold uppercase tracking-wider text-xs"><i class="fa-solid fa-rotate-right mr-2"></i>Restart Race</button>
+            <button id="btnPauseQuit" class="py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 font-bold uppercase tracking-wider text-xs"><i class="fa-solid fa-flag-checkered mr-2"></i>Back to Paddock</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= RESULTS ================= -->
+<div id="resultsScreen" class="hidden absolute inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+    <div class="carbon-bg border-2 border-slate-700 rounded-2xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl my-auto relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-400 via-red-600 to-purple-600"></div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-4">
+            <div>
+                <div class="text-xs font-bold uppercase tracking-widest text-red-500">OFFICIAL FIM MotoGP™ CLASSIFICATION</div>
+                <h2 id="finishTitle" class="font-teko text-4xl sm:text-5xl font-bold uppercase text-white leading-none mt-0.5">GRAND PRIX FINISHED!</h2>
+            </div>
+            <div id="finishBadge" class="motogp-skew bg-amber-500 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase self-start sm:self-auto"><span class="motogp-unskew">P1</span></div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-3">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                <div class="text-[10px] text-slate-400 uppercase font-bold">TOTAL RACE TIME</div>
+                <div id="resTotalTime" class="font-mono text-base sm:text-lg font-bold text-white mt-0.5">-</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                <div class="text-[10px] text-purple-400 uppercase font-bold">BEST LAP</div>
+                <div id="resBestLap" class="font-mono text-base sm:text-lg font-bold text-purple-300 mt-0.5">-</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                <div class="text-[10px] text-cyan-400 uppercase font-bold">TOP SPEED</div>
+                <div id="resTopSpeed" class="font-teko text-2xl sm:text-3xl font-bold text-white leading-none mt-0.5">-</div>
+            </div>
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3">
+                <div class="text-[10px] text-amber-400 uppercase font-bold">MAX LEAN</div>
+                <div id="resMaxLean" class="font-teko text-2xl sm:text-3xl font-bold text-amber-300 leading-none mt-0.5">-</div>
+            </div>
+        </div>
+        <div id="resPoints" class="mb-4 text-center text-sm font-bold tracking-wider text-amber-300 bg-slate-900/80 border border-slate-800 rounded-lg py-2"></div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden mb-5">
+            <div class="grid grid-cols-12 bg-slate-950 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                <div class="col-span-2">POS</div><div class="col-span-5">RIDER</div><div class="col-span-3">TEAM</div><div class="col-span-2 text-right">GAP</div>
+            </div>
+            <div id="standingsList" class="divide-y divide-slate-800/70 max-h-56 overflow-y-auto text-xs"></div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-end gap-3">
+            <button id="btnChangeBike" class="px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition cursor-pointer"><i class="fa-solid fa-wrench mr-1.5"></i> Paddock</button>
+            <button id="btnRestartRace" class="motogp-skew px-8 py-2.5 rounded bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-teko text-2xl uppercase tracking-wider shadow-xl btn-glow transition cursor-pointer">
+                <span class="motogp-unskew flex items-center justify-center gap-2"><i class="fa-solid fa-rotate-right text-base"></i> INSTANT REMATCH (R)</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+/********************************************************************
+ * 0. SMALL UTILITIES
+ ********************************************************************/
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Cached text writer: avoids touching the DOM when nothing changed
+const textCache = {};
+function setText(id, val) {
+    val = String(val);
+    if (textCache[id] === val) return;
+    textCache[id] = val;
+    $(id).textContent = val;
+}
+function setHTML(id, val) {
+    if (textCache[id + '_h'] === val) return;
+    textCache[id + '_h'] = val;
+    $(id).innerHTML = val;
+}
+
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+// roundRect polyfill for older browsers
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        this.moveTo(x + rr, y);
+        this.arcTo(x + w, y, x + w, y + h, rr);
+        this.arcTo(x + w, y + h, x, y + h, rr);
+        this.arcTo(x, y + h, x, y, rr);
+        this.arcTo(x, y, x + w, y, rr);
+        this.closePath();
+    };
+}
+
+/********************************************************************
+ * 1. TEAMS / ROSTER / SETTINGS
+ ********************************************************************/
+const TEAMS = [
+    { id: 'ducati', name: 'Ducati Lenovo Team', bikeModel: 'Desmosedici GP26', riderName: 'BAGNAIA', riderNum: '63',
+      primary: '#e10600', secondary: '#990000', accent: '#ffffff', suitColor: '#d90404', helmetColor: '#ff1e00',
+      topSpeedStat: 99, accelStat: 97, handlingStat: 92, maxSpeedBonus: 1.02, accelBonus: 1.03, leanRateBonus: 0.98 },
+    { id: 'yamaha', name: 'Monster Energy Yamaha', bikeModel: 'YZR-M1 Factory', riderName: 'QUARTARARO', riderNum: '20',
+      primary: '#0033cc', secondary: '#081538', accent: '#39ff14', suitColor: '#0a298a', helmetColor: '#ff0055',
+      topSpeedStat: 93, accelStat: 94, handlingStat: 99, maxSpeedBonus: 0.985, accelBonus: 0.99, leanRateBonus: 1.08 },
+    { id: 'ktm', name: 'Red Bull KTM Factory', bikeModel: 'RC16 Carbon', riderName: 'ACOSTA', riderNum: '31',
+      primary: '#ff6600', secondary: '#111b30', accent: '#ffcc00', suitColor: '#162038', helmetColor: '#ff5500',
+      topSpeedStat: 97, accelStat: 98, handlingStat: 94, maxSpeedBonus: 1.005, accelBonus: 1.04, leanRateBonus: 1.01 },
+    { id: 'aprilia', name: 'Aprilia Racing Factory', bikeModel: 'RS-GP26 Aero', riderName: 'MARTIN', riderNum: '89',
+      primary: '#18181f', secondary: '#d4002a', accent: '#a855f7', suitColor: '#1d1d26', helmetColor: '#a855f7',
+      topSpeedStat: 96, accelStat: 96, handlingStat: 97, maxSpeedBonus: 1.0, accelBonus: 1.01, leanRateBonus: 1.05 }
+];
+const EXTRA_AI_RIDERS = [
+    { riderName: 'MARQUEZ', riderNum: '93', teamIdx: 0 },
+    { riderName: 'BINDER',  riderNum: '33', teamIdx: 2 },
+    { riderName: 'VINALES', riderNum: '12', teamIdx: 3 },
+    { riderName: 'RINS',    riderNum: '42', teamIdx: 1 }
+];
+const POINTS_TABLE = [25, 20, 16, 13, 11, 10, 9, 8];
+
+let selectedTeamIndex = lsGet('mgp_team', 0);
+let selectedDifficulty = lsGet('mgp_diff', 'pro');
+let totalLaps = lsGet('mgp_laps', 3);
+let assistOn = lsGet('mgp_assist', true);
+let season = lsGet('mgp_season', { points: 0, races: 0, wins: 0, podiums: 0 });
+let trackRecord = lsGet('mgp_record', null);
+if (selectedTeamIndex >= TEAMS.length) selectedTeamIndex = 0;
+
+/********************************************************************
+ * 2. AUDIO
+ ********************************************************************/
+class MotoGPAudioEngine {
+    constructor() { this.ctx = null; this.isMuted = false; this.isRunning = false; }
+    init() {
+        if (this.ctx) return;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AC();
+            const c = this.ctx;
+
+            this.engineGain = c.createGain(); this.engineGain.gain.value = 0.001;
+            this.filter = c.createBiquadFilter(); this.filter.type = 'lowpass'; this.filter.frequency.value = 900; this.filter.Q.value = 3.5;
+            this.osc1 = c.createOscillator(); this.osc1.type = 'sawtooth'; this.osc1.frequency.value = 65;
+            this.osc2 = c.createOscillator(); this.osc2.type = 'square'; this.osc2.frequency.value = 97.5;
+            this.subOsc = c.createOscillator(); this.subOsc.type = 'triangle'; this.subOsc.frequency.value = 32.5;
+            const osc2Gain = c.createGain(); osc2Gain.gain.value = 0.35;
+            this.osc1.connect(this.filter); this.osc2.connect(osc2Gain); osc2Gain.connect(this.filter); this.subOsc.connect(this.filter);
+            this.filter.connect(this.engineGain); this.engineGain.connect(c.destination);
+            this.osc1.start(); this.osc2.start(); this.subOsc.start();
+
+            this.kerbOsc = c.createOscillator(); this.kerbOsc.type = 'sawtooth'; this.kerbOsc.frequency.value = 48;
+            this.kerbGain = c.createGain(); this.kerbGain.gain.value = 0;
+            this.kerbOsc.connect(this.kerbGain); this.kerbGain.connect(c.destination); this.kerbOsc.start();
+
+            const bufferSize = c.sampleRate * 1.5;
+            const noiseBuffer = c.createBuffer(1, bufferSize, c.sampleRate);
+            const out = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) out[i] = Math.random() * 2 - 1;
+
+            const n1 = c.createBufferSource(); n1.buffer = noiseBuffer; n1.loop = true;
+            const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1850; bp.Q.value = 4;
+            this.screechGain = c.createGain(); this.screechGain.gain.value = 0;
+            n1.connect(bp); bp.connect(this.screechGain); this.screechGain.connect(c.destination); n1.start();
+
+            // Wind noise tied to speed
+            const n2 = c.createBufferSource(); n2.buffer = noiseBuffer; n2.loop = true;
+            const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700;
+            this.windGain = c.createGain(); this.windGain.gain.value = 0;
+            n2.connect(lp); lp.connect(this.windGain); this.windGain.connect(c.destination); n2.start();
+
+            this.isRunning = true;
+        } catch (e) { console.warn('Web Audio unavailable:', e); }
+    }
+    resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }
+    update(rpmNorm, throttle, onKerb, skid, speedRatio) {
+        if (!this.isRunning) return;
+        const now = this.ctx.currentTime;
+        if (this.isMuted) {
+            this.engineGain.gain.setTargetAtTime(0, now, 0.05);
+            this.kerbGain.gain.setTargetAtTime(0, now, 0.05);
+            this.screechGain.gain.setTargetAtTime(0, now, 0.05);
+            this.windGain.gain.setTargetAtTime(0, now, 0.05);
+            return;
+        }
+        const base = 58 + rpmNorm * 245;
+        this.osc1.frequency.setTargetAtTime(base, now, 0.03);
+        this.osc2.frequency.setTargetAtTime(base * 1.498, now, 0.03);
+        this.subOsc.frequency.setTargetAtTime(base * 0.5, now, 0.03);
+        this.filter.frequency.setTargetAtTime(500 + rpmNorm * 2600 + (throttle ? 700 : 0), now, 0.04);
+        this.engineGain.gain.setTargetAtTime(0.08 + rpmNorm * 0.07 + (throttle ? 0.03 : 0), now, 0.04);
+        if (onKerb && speedRatio > 0.1) {
+            this.kerbOsc.frequency.setTargetAtTime(35 + speedRatio * 55, now, 0.02);
+            this.kerbGain.gain.setTargetAtTime(0.1, now, 0.02);
+        } else this.kerbGain.gain.setTargetAtTime(0, now, 0.04);
+        this.screechGain.gain.setTargetAtTime(skid && speedRatio > 0.25 ? 0.05 : 0, now, 0.04);
+        this.windGain.gain.setTargetAtTime(speedRatio * speedRatio * 0.07, now, 0.1);
+    }
+    playBeep(freq = 880, duration = 0.16) {
+        if (this.isMuted) return;
+        this.init(); this.resume();
+        if (!this.ctx) return;
+        try {
+            const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+            o.type = 'sine'; o.frequency.value = freq;
+            g.gain.setValueAtTime(0.15, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            o.connect(g); g.connect(this.ctx.destination);
+            o.start(); o.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    }
+    thump(freq = 90, duration = 0.18, vol = 0.3) {
+        if (this.isMuted || !this.ctx) return;
+        try {
+            const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            o.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + duration);
+            g.gain.setValueAtTime(vol, this.ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            o.connect(g); g.connect(this.ctx.destination);
+            o.start(); o.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    }
+    silence() {
+        if (!this.isRunning) return;
+        const now = this.ctx.currentTime;
+        [this.engineGain, this.kerbGain, this.screechGain, this.windGain].forEach(g => g.gain.setTargetAtTime(0, now, 0.08));
+    }
+}
+const audio = new MotoGPAudioEngine();
+
+/********************************************************************
+ * 3. TRACK
+ ********************************************************************/
+const SEGMENT_LENGTH = 200;
+const ROAD_WIDTH = 2100;
+const RUMBLE_LENGTH = 3;
+const DRAW_DISTANCE = 150;
+const CAMERA_DEPTH = 0.92;
+const CAM_BACK = 1000;        // camera trails the rider so overtakes read correctly
+const START_SEG = 18;         // start/finish line segment
+
+let segments = [];
+let trackLength = 0;
+let minimapPoints = [];
+
+function easeIn(a, b, p) { return a + (b - a) * p * p; }
+function easeInOut(a, b, p) { return a + (b - a) * ((-Math.cos(p * Math.PI) / 2) + 0.5); }
+function lastY() { return segments.length === 0 ? 0 : segments[segments.length - 1].p2.world.y; }
+
+function addSegment(curve, y) {
+    const n = segments.length;
+    segments.push({
+        index: n,
+        p1: { world: { x: 0, y: lastY(), z: n * SEGMENT_LENGTH }, camera: {}, screen: {} },
+        p2: { world: { x: 0, y: y, z: (n + 1) * SEGMENT_LENGTH }, camera: {}, screen: {} },
+        curve, sprites: [], riders: [],
+        color: Math.floor(n / RUMBLE_LENGTH) % 2 ? 'dark' : 'light',
+        clip: 0, fog: 0
+    });
+}
+function addRoad(enter, hold, leave, curve, y) {
+    const startY = lastY(), endY = startY + y * SEGMENT_LENGTH, total = enter + hold + leave;
+    for (let n = 0; n < enter; n++) addSegment(easeIn(0, curve, n / enter), easeInOut(startY, endY, n / total));
+    for (let n = 0; n < hold; n++) addSegment(curve, easeInOut(startY, endY, (enter + n) / total));
+    for (let n = 0; n < leave; n++) addSegment(easeInOut(curve, 0, n / leave), easeInOut(startY, endY, (enter + hold + n) / total));
+}
+function addSprite(n, type, offset, extra = {}) {
+    if (segments[n]) segments[n].sprites.push({ type, offset, ...extra });
+}
+
+function buildCircuit() {
+    segments = [];
+    addRoad(20, 75, 20, 0, 0);          // main straight
+    addRoad(18, 45, 18, 4.4, 24);       // San Donato
+    addRoad(15, 35, 15, -4.2, 10);      // Luco
+    addRoad(15, 35, 15, 3.8, -12);      // Poggio Secco
+    addRoad(20, 40, 20, -3.2, -22);     // Materassi
+    addRoad(18, 45, 18, 4.5, -28);      // Casanova-Savelli
+    addRoad(20, 55, 15, 5.1, 36);       // Arrabbiata 1
+    addRoad(15, 45, 20, 3.6, 18);       // Arrabbiata 2
+    addRoad(15, 35, 15, -4.6, -10);     // Scarperia
+    addRoad(15, 40, 15, 2.5, -16);      // Palagio
+    addRoad(18, 50, 18, -5.4, 0);       // Correntaio
+    addRoad(12, 28, 12, 3.8, 0);        // Biondetti
+    addRoad(18, 60, 22, -4.5, 0);       // Bucine
+    const cy = lastY();
+    addRoad(20, 45, 20, 0, -cy / SEGMENT_LENGTH);
+    trackLength = segments.length * SEGMENT_LENGTH;
+
+    const sponsors = ['MOTUL', 'MICHELIN', 'DHL', 'RED BULL', 'BREMBO', 'TISSOT', 'OAKLEY', 'MONSTER'];
+    for (let n = 10; n < 110; n += 14) { addSprite(n, 'grandstand', -1.85); addSprite(n, 'pitbuilding', 1.85); }
+    addSprite(START_SEG, 'gantry', 0, { text: 'MotoGP™ MUGELLO GRAND PRIX' });
+    addSprite(Math.floor(segments.length * 0.34), 'gantry', 0, { text: 'SECTOR 1 • MICHELIN' });
+    addSprite(Math.floor(segments.length * 0.67), 'gantry', 0, { text: 'SECTOR 2 • BREMBO' });
+
+    for (let n = 115; n < segments.length - 20; n += 6) {
+        const seg = segments[n];
+        if (Math.abs(seg.curve) > 3.0 && n % 12 === 0) {
+            addSprite(n, 'chevron', seg.curve > 0 ? -1.45 : 1.45, { dir: seg.curve > 0 ? 1 : -1 });
+        }
+        if ((n > 420 && n < 560 && n % 18 === 0) || (n > 850 && n < 980 && n % 18 === 0)) addSprite(n, 'grandstand', -2.0);
+        if (n % 36 === 0) {
+            addSprite(n, 'billboard', (n % 72 === 0) ? -1.65 : 1.65, { label: sponsors[(n / 36) % sponsors.length] });
+        }
+        if (n % 8 === 0) {
+            const tt = (n % 16 === 0) ? 'cypress' : 'tree';
+            addSprite(n, tt, -2.3 - Math.sin(n) * 0.8);
+            addSprite(n, tt, 2.3 + Math.cos(n) * 0.8);
+        }
+    }
+    generateMinimapLoop();
+}
+
+function generateMinimapLoop() {
+    let x = 0, y = 0, angle = 0;
+    const raw = [];
+    for (let i = 0; i < segments.length; i++) {
+        angle += segments[i].curve * 0.00295;
+        x += Math.cos(angle); y += Math.sin(angle);
+        raw.push({ x, y });
+    }
+    const dx = raw[raw.length - 1].x - raw[0].x, dy = raw[raw.length - 1].y - raw[0].y;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < raw.length; i++) {
+        const t = i / (raw.length - 1);
+        raw[i].x -= dx * t; raw[i].y -= dy * t;
+        minX = Math.min(minX, raw[i].x); maxX = Math.max(maxX, raw[i].x);
+        minY = Math.min(minY, raw[i].y); maxY = Math.max(maxY, raw[i].y);
+    }
+    const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+    minimapPoints = raw.map(p => ({ nx: (p.x - minX) / w, ny: (p.y - minY) / h }));
+}
+
+/********************************************************************
+ * 4. STATE
+ ********************************************************************/
+const BASE_MAX_SPEED = SEGMENT_LENGTH * 62;
+const player = {
+    x: 0, z: 0, totalDistance: 0, speed: 0, maxSpeed: BASE_MAX_SPEED,
+    steer: 0, leanAngle: 0, maxLeanRecorded: 0, topSpeedRecorded: 0,
+    gear: 1, rpm: 4000, boost: 100, isBoosting: false, onKerb: false, offRoad: false,
+    lapsDone: 0, lap: 1, currentLapTime: 0, lastLapTime: null, bestLapTime: null,
+    finished: false, finishTime: 0, team: TEAMS[0], wheelRotation: 0, exhaustFlame: 0,
+    shake: 0, wallCd: 0
+};
+
+let aiRiders = [];
+let particles = [];
+let skyOffset = 0, hillOffset = 0;
+let gyroCamEnabled = true;
+let raceClock = 0;
+let cooldownTimer = 0;
+let lastRank = 8, rankCd = 0;
+
+// 'MENU' | 'COUNTDOWN' | 'RACING' | 'COOLDOWN' | 'PAUSED' | 'FINISHED'
+let gameState = 'MENU';
+let stateBeforePause = 'RACING';
+let countdownTimer = 0, countdownStep = 0;
+
+const keys = { up: false, down: false, left: false, right: false, boost: false };
+let ctl = { up: false, down: false, steer: 0, boost: false };   // resolved controls this frame
+
+const isRaceState = () => gameState === 'COUNTDOWN' || gameState === 'RACING' || gameState === 'COOLDOWN' || gameState === 'PAUSED';
+const finishDistance = () => totalLaps * trackLength + START_SEG * SEGMENT_LENGTH;
+
+function setupGrid() {
+    const team = TEAMS[selectedTeamIndex];
+    player.team = team;
+    player.maxSpeed = BASE_MAX_SPEED * team.maxSpeedBonus;
+    player.x = -0.35;
+    player.totalDistance = 12 * SEGMENT_LENGTH;
+    player.z = player.totalDistance;
+    player.speed = 0; player.steer = 0; player.leanAngle = 0;
+    player.maxLeanRecorded = 0; player.topSpeedRecorded = 0;
+    player.gear = 1; player.rpm = 4200; player.boost = 100;
+    player.lapsDone = 0; player.lap = 1;
+    player.currentLapTime = 0; player.lastLapTime = null; player.bestLapTime = null;
+    player.finished = false; player.finishTime = 0;
+    player.exhaustFlame = 0; player.shake = 0; player.wallCd = 0;
+    raceClock = 0; cooldownTimer = 0; lastRank = 8; rankCd = 0;
+
+    aiRiders = [];
+    const roster = [];
+    TEAMS.forEach((t, idx) => { if (idx !== selectedTeamIndex) roster.push({ riderName: t.riderName, riderNum: t.riderNum, team: t }); });
+    EXTRA_AI_RIDERS.forEach(e => roster.push({ riderName: e.riderName, riderNum: e.riderNum, team: TEAMS[e.teamIdx] }));
+
+    const diffScale = selectedDifficulty === 'rookie' ? 0.87 : (selectedDifficulty === 'pro' ? 0.945 : 0.995);
+    for (let i = 0; i < 7; i++) {
+        const info = roster[i];
+        const gridOffset = (i % 2 === 0) ? 0.38 : -0.38;
+        const startZ = (13 + i * 2) * SEGMENT_LENGTH;
+        aiRiders.push({
+            id: i, riderName: info.riderName, riderNum: info.riderNum, team: info.team,
+            x: gridOffset, z: startZ % trackLength, totalDistance: startZ, speed: 0,
+            baseTopSpeed: BASE_MAX_SPEED * diffScale * (0.94 + i * 0.012),
+            leanAngle: 0, targetX: gridOffset, laneTimer: Math.random() * 3,
+            wobblePhase: Math.random() * 6.28, hitCd: 0, finished: false, finishTime: 0
+        });
+    }
+    particles = [];
+    clearRiderBuckets();
+    updateTeamHUD();
+}
+
+function clearRiderBuckets() { for (let i = 0; i < segments.length; i++) segments[i].riders.length = 0; }
+
+/********************************************************************
+ * 5. UI HELPERS
+ ********************************************************************/
+const canvas = $('gameCanvas');
+const ctx = canvas.getContext('2d');
+const minimapCanvas = $('minimapCanvas'), minimapCtx = minimapCanvas.getContext('2d');
+const leanCanvas = $('leanGaugeCanvas'), leanCtx = leanCanvas.getContext('2d');
+
+const rpmBarContainer = $('rpmBarContainer');
+const rpmLeds = [];
+for (let i = 0; i < 16; i++) {
+    const led = document.createElement('div');
+    led.className = 'flex-1 h-full rounded-[1px] bg-slate-800';
+    rpmBarContainer.appendChild(led);
+    rpmLeds.push(led);
+}
+
+function renderTeamCards() {
+    const grid = $('teamGrid');
+    grid.innerHTML = '';
+    TEAMS.forEach((team, idx) => {
+        const sel = idx === selectedTeamIndex;
+        const card = document.createElement('div');
+        card.className = `cursor-pointer rounded-xl p-3.5 border-2 transition-all duration-150 relative overflow-hidden ${sel ? 'bg-slate-900 border-red-500 shadow-lg shadow-red-600/20 scale-[1.02]' : 'bg-slate-900/65 border-slate-800 hover:border-slate-600'}`;
+        const bar = (label, val, col) => `
+            <div>
+                <div class="flex justify-between text-slate-400 mb-0.5"><span>${label}</span><span class="text-white font-bold">${val}</span></div>
+                <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div class="h-full rounded-full" style="width:${val}%; background:${col}"></div></div>
+            </div>`;
+        card.innerHTML = `
+            <div class="w-full h-1.5 rounded-full mb-2.5" style="background: linear-gradient(90deg, ${team.primary}, ${team.accent})"></div>
+            <div class="flex items-center justify-between mb-1">
+                <span class="font-teko text-2xl font-bold px-2 rounded leading-none" style="background:${team.primary}; color:#fff">#${team.riderNum}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300">${team.bikeModel}</span>
+            </div>
+            <div class="font-bold text-sm text-white tracking-wide">${team.riderName}</div>
+            <div class="text-[11px] text-slate-400 mb-3 truncate">${team.name}</div>
+            <div class="space-y-1.5 text-[10px]">
+                ${bar('TOP SPEED', team.topSpeedStat, team.primary)}
+                ${bar('ACCELERATION', team.accelStat, team.primary)}
+                ${bar('CORNER LEAN', team.handlingStat, team.accent)}
+            </div>`;
+        card.addEventListener('click', () => {
+            selectedTeamIndex = idx; lsSet('mgp_team', idx);
+            audio.playBeep(660, 0.07); renderTeamCards();
+        });
+        grid.appendChild(card);
+    });
+}
+
+function refreshMenuInfo() {
+    $('seasonInfo').textContent = `SEASON: ${season.points} PTS • ${season.wins} WINS • ${season.podiums} PODIUMS • ${season.races} RACES`;
+    $('recordInfo').textContent = `TRACK RECORD: ${formatLapTime(trackRecord)}`;
+    $('lapsLabel').textContent = `${totalLaps} Laps`;
+    $('assistState').textContent = assistOn ? 'ON' : 'OFF';
+    $('btnAssist').classList.toggle('sel', assistOn);
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b.dataset.diff === selectedDifficulty));
+    document.querySelectorAll('.lap-btn').forEach(b => b.classList.toggle('sel', parseInt(b.dataset.laps, 10) === totalLaps));
+}
+
+function updateTeamHUD() {
+    const t = player.team;
+    $('hudTeamStripe').style.backgroundColor = t.primary;
+    $('hudRiderNumber').textContent = t.riderNum;
+    $('hudRiderName').textContent = t.riderName;
+    $('hudTeamName').textContent = t.name;
+}
+
+function formatLapTime(seconds) {
+    if (seconds === null || seconds === undefined || isNaN(seconds)) return '--:--.---';
+    const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60), ms = Math.floor((seconds % 1) * 1000);
+    return `${m}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+let bannerTimeout = null;
+function showRaceBanner(text, duration = 2400) {
+    const b = $('raceBanner');
+    $('raceBannerText').textContent = text;
+    b.classList.remove('opacity-0', '-translate-y-2');
+    b.classList.add('opacity-100', 'translate-y-0');
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(() => {
+        b.classList.add('opacity-0', '-translate-y-2');
+        b.classList.remove('opacity-100', 'translate-y-0');
+    }, duration);
+}
+
+/********************************************************************
+ * 6. INPUT RESOLUTION (keyboard + touch + gamepad)
+ ********************************************************************/
+function resolveControls() {
+    let up = keys.up, down = keys.down, boost = keys.boost;
+    let steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    try {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (const pad of pads) {
+            if (!pad) continue;
+            const ax = pad.axes[0] || 0;
+            if (Math.abs(ax) > 0.15) steer = clamp((Math.abs(ax) - 0.15) / 0.85, 0, 1) * Math.sign(ax);
+            if (pad.buttons[7] && pad.buttons[7].value > 0.2) up = true;
+            if (pad.buttons[6] && pad.buttons[6].value > 0.2) down = true;
+            if (pad.buttons[0] && pad.buttons[0].pressed) boost = true;
+            if (pad.buttons[7] && pad.buttons[7].pressed) up = true;
+            break;
+        }
+    } catch (e) {}
+    ctl.up = up; ctl.down = down; ctl.boost = boost; ctl.steer = steer;
+}
+
+/********************************************************************
+ * 7. PHYSICS + RACE LOGIC
+ ********************************************************************/
+function segAt(z) { return segments[Math.floor(z / SEGMENT_LENGTH) % segments.length]; }
+
+function maxCurveAhead(z, count) {
+    const base = Math.floor(z / SEGMENT_LENGTH);
+    let best = 0, signed = 0, dist = 0;
+    for (let i = 1; i <= count; i++) {
+        const c = segments[(base + i) % segments.length].curve;
+        if (Math.abs(c) > best) { best = Math.abs(c); signed = c; dist = i; }
+    }
+    return { mag: best, signed, dist };
+}
+const cornerSpeedFactorAI = (c) => c > 3.2 ? 1.0 - (c - 3.0) * 0.055 : 1.0;
+const cornerSpeedFactorAssist = (c) => c > 2.6 ? Math.max(0.55, 1.0 - (c - 2.4) * 0.1) : 1.0;
+
+function getCurrentStandings() {
+    const all = [
+        { isPlayer: true, riderName: player.team.riderName, riderNum: player.team.riderNum, team: player.team, progress: player.totalDistance, finished: player.finished, finishTime: player.finishTime, speed: player.speed },
+        ...aiRiders.map(a => ({ isPlayer: false, riderName: a.riderName, riderNum: a.riderNum, team: a.team, progress: a.totalDistance, finished: a.finished, finishTime: a.finishTime, speed: a.speed }))
+    ];
+    all.sort((a, b) => {
+        if (a.finished && b.finished) return a.finishTime - b.finishTime;
+        if (a.finished) return -1;
+        if (b.finished) return 1;
+        return b.progress - a.progress;
+    });
+    return all;
+}
+
+function updateCountdown(dt) {
+    countdownTimer += dt;
+    const lights = document.querySelectorAll('.start-light');
+    const step = Math.floor(countdownTimer / 0.8);
+    if (step > countdownStep && step <= 5) {
+        countdownStep = step;
+        lights[step - 1].classList.remove('bg-slate-800', 'border-slate-600');
+        lights[step - 1].classList.add('bg-red-600', 'border-red-300', 'shadow-[0_0_18px_#ef4444]');
+        audio.playBeep(440, 0.14);
+    } else if (countdownTimer >= 4.0 + Math.random() * 0 + (countdownTimer < 4.6 ? 0 : 0) && countdownStep >= 5 && countdownTimer >= 5 * 0.8 + 0.7) {
+        lights.forEach(l => {
+            l.classList.remove('bg-red-600', 'border-red-300', 'shadow-[0_0_18px_#ef4444]');
+            l.classList.add('bg-emerald-500', 'border-emerald-200', 'shadow-[0_0_18px_#10b981]');
+        });
+        audio.playBeep(880, 0.35);
+        showRaceBanner('LIGHTS OUT AND AWAY WE GO!', 2500);
+        gameState = 'RACING';
+        // Launch bonus: rev held at lights-out gives a small kick
+        if (player.rpm > 12500 && player.rpm < 16300) player.speed = player.maxSpeed * 0.08;
+        setTimeout(() => $('startLightsPanel').classList.add('opacity-0'), 1200);
+    }
+}
+
+function updatePhysics(dt) {
+    resolveControls();
+
+    if (gameState === 'COUNTDOWN') {
+        if (ctl.up) player.rpm = Math.min(16800, player.rpm + 26000 * dt);
+        else player.rpm = Math.max(4200, player.rpm - 18000 * dt);
+        audio.update((player.rpm - 4000) / 13500, ctl.up, false, false, 0);
+        updateCountdown(dt);
+        updateHUD();
+        return;
+    }
+    if (gameState !== 'RACING' && gameState !== 'COOLDOWN') return;
+
+    const racing = gameState === 'RACING';
+    raceClock += dt;
+    if (racing) player.currentLapTime += dt;
+
+    const seg = segAt(player.z);
+    let speedRatio = player.speed / player.maxSpeed;
+
+    // --- Controls (auto-pilot during the cool-down lap) ---
+    let up = ctl.up, down = ctl.down, boostKey = ctl.boost, steerTarget = ctl.steer;
+    if (!racing) {
+        up = speedRatio < 0.42; down = speedRatio > 0.55; boostKey = false;
+        steerTarget = clamp(seg.curve * 0.2 - player.x * 0.9, -1, 1);
+    }
+
+    // Brake assist: if throttle is held and a corner is coming too fast, ease off
+    let assistBraking = false;
+    if (racing && assistOn && up && !down) {
+        const ahead = maxCurveAhead(player.z, 40);
+        const allowed = cornerSpeedFactorAssist(ahead.mag);
+        if (speedRatio > allowed + 0.03) { assistBraking = true; }
+    }
+
+    // --- Aero boost ---
+    player.isBoosting = boostKey && player.boost > 2 && up && !player.offRoad;
+    if (player.isBoosting) {
+        player.boost = Math.max(0, player.boost - 26 * dt);
+        player.exhaustFlame = 1.0;
+    } else {
+        let bonus = 8;
+        for (const ai of aiRiders) {
+            const d = ai.totalDistance - player.totalDistance;
+            if (d > 0 && d < 16 * SEGMENT_LENGTH && Math.abs(ai.x - player.x) < 0.35) { bonus = 24; break; }
+        }
+        player.boost = Math.min(100, player.boost + bonus * dt);
+        player.exhaustFlame = Math.max(0, player.exhaustFlame - 4 * dt);
+    }
+
+    // --- Longitudinal ---
+    const currentMax = player.isBoosting ? player.maxSpeed * 1.11 : player.maxSpeed;
+    const accelForce = (player.maxSpeed / 4.1) * player.team.accelBonus * (player.isBoosting ? 1.35 : 1.0);
+    const brakeForce = -player.maxSpeed * 0.95;
+    const engineBraking = -player.maxSpeed / 6.5;
+
+    if (down) {
+        player.speed += brakeForce * dt;
+        if (speedRatio > 0.45 && Math.random() < 0.35) player.exhaustFlame = 0.8;
+    } else if (assistBraking) {
+        player.speed += brakeForce * 0.55 * dt;
+    } else if (up) {
+        const factor = 1.0 - Math.pow(player.speed / currentMax, 2.2) * 0.65;
+        player.speed += accelForce * factor * dt;
+    } else {
+        player.speed += engineBraking * dt;
+    }
+
+    // --- Steering with smoothed analog input + lean ---
+    const maxLean = 63;
+    const rate = player.team.leanRateBonus;
+    const steerRate = Math.abs(steerTarget) < 0.01 ? 11 : 8;
+    player.steer += (steerTarget - player.steer) * Math.min(1, steerRate * dt);
+    const targetLean = player.steer * maxLean;
+    player.leanAngle += (targetLean - player.leanAngle) * Math.min(1, 9.5 * rate * dt);
+    const absLean = Math.abs(player.leanAngle);
+    if (absLean > player.maxLeanRecorded) player.maxLeanRecorded = Math.round(absLean);
+
+    speedRatio = player.speed / player.maxSpeed;
+    const steerAuthority = Math.max(0.3, Math.sin(Math.min(1, speedRatio * 1.4) * Math.PI * 0.5));
+    player.x += (player.leanAngle / maxLean) * steerAuthority * 2.55 * dt;
+
+    // Centrifugal push (eased on lower difficulties)
+    const cScale = selectedDifficulty === 'rookie' ? 0.62 : (selectedDifficulty === 'pro' ? 0.85 : 1.0);
+    player.x -= speedRatio * speedRatio * seg.curve * 0.46 * cScale * dt;
+
+    // --- Surfaces ---
+    const absX = Math.abs(player.x);
+    player.onKerb = absX >= 0.96 && absX <= 1.18;
+    player.offRoad = absX > 1.18;
+    if (player.offRoad) {
+        const target = player.maxSpeed * 0.36;
+        if (player.speed > target) player.speed -= player.maxSpeed * 0.85 * dt;
+        player.shake = Math.max(player.shake, 3);
+    } else if (player.onKerb) {
+        player.shake = Math.max(player.shake, 1.6);
+    }
+
+    // Barrier
+    player.wallCd = Math.max(0, player.wallCd - dt);
+    if (absX >= 2.1) {
+        player.speed = Math.max(0, player.speed - player.maxSpeed * 1.5 * dt);
+        player.x = Math.sign(player.x) * 2.08;
+        player.shake = 9;
+        if (player.wallCd <= 0 && racing) {
+            player.wallCd = 1.2;
+            audio.thump(110, 0.25, 0.4);
+            showRaceBanner('BARRIER CONTACT!', 1400);
+        }
+    }
+
+    player.speed = clamp(player.speed, 0, currentMax);
+    player.x = clamp(player.x, -2.15, 2.15);
+    player.shake = Math.max(0, player.shake - 22 * dt);
+
+    const kmh = Math.round((player.speed / BASE_MAX_SPEED) * 348);
+    if (kmh > player.topSpeedRecorded) player.topSpeedRecorded = kmh;
+
+    // --- Gearbox ---
+    const thresholds = [0, 0.22, 0.39, 0.56, 0.73, 0.88, 1.18];
+    let newGear = 1;
+    for (let g = 1; g <= 6; g++) if (speedRatio >= thresholds[g - 1]) newGear = g;
+    if (newGear !== player.gear) {
+        if (newGear < player.gear && player.speed > 1000) player.exhaustFlame = 0.9;
+        audio.thump(newGear > player.gear ? 130 : 100, 0.08, 0.12);
+    }
+    player.gear = newGear;
+    const gMin = thresholds[player.gear - 1], gMax = thresholds[player.gear];
+    const inGear = clamp((speedRatio - gMin) / (gMax - gMin), 0, 1);
+    player.rpm = Math.round(4500 + inGear * 13000);
+    if (player.speed < 80) player.rpm = 4200;
+
+    // --- Particles ---
+    const kneeScrape = absLean >= 50 && speedRatio > 0.28;
+    if (kneeScrape) {
+        const side = Math.sign(player.leanAngle);
+        for (let s = 0; s < 3; s++) {
+            particles.push({ type: 'spark', x: side * 58 + (Math.random() - 0.5) * 14, y: -12 + (Math.random() - 0.5) * 8,
+                vx: -side * 90 + (Math.random() - 0.5) * 180, vy: -40 - Math.random() * 140,
+                life: 0.18 + Math.random() * 0.18, maxLife: 0.35, color: Math.random() > 0.35 ? '#fde047' : '#fb923c' });
+        }
+    }
+    if ((down && speedRatio > 0.45) || (player.offRoad && speedRatio > 0.2)) {
+        particles.push({ type: 'smoke', x: (Math.random() - 0.5) * 28, y: -6, vx: (Math.random() - 0.5) * 65, vy: -25 - Math.random() * 45,
+            size: 10 + Math.random() * 14, life: 0.35, maxLife: 0.35,
+            color: player.offRoad ? 'rgba(163,140,102,0.55)' : 'rgba(220,230,242,0.45)' });
+    }
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 320 * dt; p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // --- Advance along the circuit (single source of truth: totalDistance) ---
+    player.totalDistance += player.speed * dt;
+    player.z = player.totalDistance % trackLength;
+    player.wheelRotation += player.speed * dt * 0.01;
+    skyOffset = (skyOffset - seg.curve * speedRatio * 0.55) % 1200;
+    hillOffset = (hillOffset - seg.curve * speedRatio * 1.15) % 1200;
+
+    // --- Lap / finish detection ---
+    if (racing) {
+        const lapsNow = Math.max(0, Math.floor((player.totalDistance - START_SEG * SEGMENT_LENGTH) / trackLength));
+        if (lapsNow > player.lapsDone) {
+            player.lapsDone = lapsNow;
+            const lapTime = player.currentLapTime;
+            const prevBest = player.bestLapTime;
+            player.lastLapTime = lapTime;
+            let isBest = false;
+            if (prevBest === null || lapTime < prevBest) { player.bestLapTime = lapTime; isBest = true; }
+            player.currentLapTime = 0;
+            let newRecord = false;
+            if (trackRecord === null || lapTime < trackRecord) { trackRecord = lapTime; lsSet('mgp_record', trackRecord); newRecord = true; }
+
+            if (player.lapsDone >= totalLaps) {
+                player.finished = true;
+                player.finishTime = raceClock;
+                gameState = 'COOLDOWN';
+                cooldownTimer = 0;
+                audio.playBeep(1046, 0.4);
+                showRaceBanner('CHEQUERED FLAG!', 3500);
+            } else {
+                player.lap = player.lapsDone + 1;
+                audio.playBeep(784, 0.18);
+                const delta = prevBest === null ? '' : ` (${lapTime - prevBest >= 0 ? '+' : '-'}${Math.abs(lapTime - prevBest).toFixed(3)})`;
+                if (newRecord) showRaceBanner(`NEW TRACK RECORD ${formatLapTime(lapTime)}`, 2800);
+                else if (player.lap === totalLaps) showRaceBanner('FINAL LAP! PUSH TO THE LIMIT!', 2600);
+                else if (isBest) showRaceBanner(`PURPLE LAP ${formatLapTime(lapTime)}${delta}`, 2600);
+                else showRaceBanner(`LAP ${player.lap} OF ${totalLaps}${delta}`, 2200);
+            }
+        }
+    }
+
+    updateAIRiders(dt);
+
+    if (gameState === 'COOLDOWN') {
+        cooldownTimer += dt;
+        const allDone = aiRiders.every(a => a.finished);
+        if (cooldownTimer > 4.5 || (allDone && cooldownTimer > 1.5)) { completeRace(); return; }
+    }
+
+    const rpmNorm = clamp((player.rpm - 4200) / 13300, 0, 1);
+    audio.update(rpmNorm, up, player.onKerb, kneeScrape || (down && speedRatio > 0.5), speedRatio);
+    updateHUD();
+}
+
+function updateAIRiders(dt) {
+    clearRiderBuckets();
+    const finishDist = finishDistance();
+    const playerAsRider = { x: player.x, speed: player.speed, totalDistance: player.totalDistance };
+
+    for (let i = 0; i < aiRiders.length; i++) {
+        const ai = aiRiders[i];
+        const segIdx = Math.floor(ai.z / SEGMENT_LENGTH) % segments.length;
+        const seg = segments[segIdx];
+        const look = segments[(segIdx + 12) % segments.length];
+
+        const cornerDemand = Math.max(Math.abs(seg.curve), Math.abs(look.curve));
+        const slow = cornerSpeedFactorAI(cornerDemand);
+
+        // Gentle rubber banding relative to the player
+        const dd = player.totalDistance - ai.totalDistance;
+        let rubber = 1.0;
+        if (!player.finished) {
+            if (dd > SEGMENT_LENGTH * 90) rubber = 1.06;
+            else if (dd < -SEGMENT_LENGTH * 80) rubber = 0.94;
+        }
+        ai.wobblePhase += dt * 0.4;
+        const wobble = 1 + Math.sin(ai.wobblePhase + i) * 0.012;
+
+        let targetSpeed = ai.baseTopSpeed * slow * rubber * wobble;
+
+        // Avoid riders ahead (other AIs and the player)
+        const others = aiRiders.concat([playerAsRider]);
+        for (const o of others) {
+            if (o === ai) continue;
+            const ahead = o.totalDistance - ai.totalDistance;
+            if (ahead > 0 && ahead < SEGMENT_LENGTH * 7 && Math.abs(o.x - ai.x) < 0.3) {
+                ai.targetX = clamp(o.x + (ai.x >= o.x ? 0.42 : -0.42), -0.8, 0.8);
+                ai.laneTimer = Math.max(ai.laneTimer, 0.7);
+                if (ahead < SEGMENT_LENGTH * 2.4) targetSpeed = Math.min(targetSpeed, o.speed * 1.0);
+            }
+        }
+
+        if (ai.speed < targetSpeed) ai.speed = Math.min(targetSpeed, ai.speed + ai.baseTopSpeed * 0.35 * dt);
+        else ai.speed = Math.max(targetSpeed, ai.speed - ai.baseTopSpeed * 0.55 * dt);
+
+        ai.laneTimer -= dt;
+        if (ai.laneTimer <= 0) {
+            ai.laneTimer = 1.2 + Math.random() * 1.8;
+            if (Math.abs(look.curve) > 2.0) ai.targetX = look.curve > 0 ? 0.55 : -0.55;
+            else ai.targetX = (Math.random() - 0.5) * 1.15;
+        }
+        const dx = ai.targetX - ai.x;
+        ai.x += Math.sign(dx) * Math.min(Math.abs(dx), 0.85 * dt);
+        ai.x = clamp(ai.x, -0.82, 0.82);
+
+        const desiredLean = clamp(seg.curve * 9.5 + dx * 32, -58, 58);
+        ai.leanAngle += (desiredLean - ai.leanAngle) * 8 * dt;
+
+        const step = ai.speed * dt;
+        ai.totalDistance += step;
+        ai.z = ai.totalDistance % trackLength;
+
+        if (!ai.finished && ai.totalDistance >= finishDist) { ai.finished = true; ai.finishTime = raceClock; }
+
+        // Player contact
+        ai.hitCd = Math.max(0, ai.hitCd - dt);
+        if (Math.abs(ai.totalDistance - player.totalDistance) < SEGMENT_LENGTH * 1.4 && Math.abs(ai.x - player.x) < 0.24 && gameState !== 'COOLDOWN') {
+            const push = player.x >= ai.x ? 1 : -1;
+            player.x += push * 0.14;
+            ai.x -= push * 0.12;
+            if (player.speed > ai.speed) player.speed = ai.speed * 0.94;
+            if (ai.hitCd <= 0) {
+                ai.hitCd = 0.35;
+                audio.thump(160, 0.12, 0.3);
+                player.shake = Math.max(player.shake, 6);
+                for (let s = 0; s < 8; s++) {
+                    particles.push({ type: 'spark', x: -push * 40, y: -35, vx: (Math.random() - 0.5) * 260, vy: -80 - Math.random() * 140,
+                        life: 0.25, maxLife: 0.25, color: '#fde047' });
+                }
+            }
+        }
+
+        segments[Math.floor(ai.z / SEGMENT_LENGTH) % segments.length].riders.push(ai);
+    }
+}
+
+/********************************************************************
+ * 8. HUD
+ ********************************************************************/
+let cornerWarnVisible = false;
+function updateHUD() {
+    const kmh = Math.round((player.speed / BASE_MAX_SPEED) * 348);
+    setText('hudSpeed', kmh);
+    setText('hudGear', player.gear);
+    setText('hudRpmVal', player.rpm.toLocaleString());
+
+    const rpmRatio = clamp((player.rpm - 4000) / 13500, 0, 1);
+    const lit = Math.round(rpmRatio * 16);
+    const shift = player.rpm >= 16400;
+    for (let i = 0; i < 16; i++) {
+        let cls;
+        if (i < lit) {
+            if (shift) cls = 'bg-cyan-400 shadow-[0_0_8px_#22d3ee] shift-flash';
+            else if (i < 7) cls = 'bg-emerald-500';
+            else if (i < 12) cls = 'bg-amber-400';
+            else cls = 'bg-red-600 shadow-[0_0_6px_#e10600]';
+        } else cls = 'bg-slate-800';
+        const full = 'flex-1 h-full rounded-[1px] ' + cls;
+        if (rpmLeds[i].className !== full) rpmLeds[i].className = full;
+    }
+
+    const throttleOn = gameState === 'COOLDOWN' ? false : ctl.up;
+    $('hudThrottleBar').style.width = throttleOn ? '100%' : '0%';
+    $('hudBrakeBar').style.width = (ctl.down && gameState !== 'COOLDOWN') ? '100%' : '0%';
+
+    const absLean = Math.round(Math.abs(player.leanAngle));
+    setText('hudLeanDeg', `${absLean}°`);
+    setText('hudLeanDir', absLean < 2 ? 'CENTER' : (player.leanAngle < 0 ? 'LEFT' : 'RIGHT'));
+    setText('hudMaxLean', `${player.maxLeanRecorded}°`);
+    drawLeanGauge(player.leanAngle);
+
+    const boostR = Math.round(player.boost);
+    setText('hudBoostPct', `${boostR}%`);
+    $('hudBoostBar').style.width = `${boostR}%`;
+
+    let surf;
+    if (player.offRoad) surf = '<span class="text-amber-500">▲</span> GRAVEL TRAP PENALTY';
+    else if (player.onKerb) surf = '<span class="text-red-500">◆</span> APEX KERB RUMBLE';
+    else if (absLean >= 50) surf = `<span class="text-yellow-300">★</span> KNEE SLIDER DOWN (${absLean}°)`;
+    else surf = `<span class="text-emerald-400">●</span> ASPHALT GRIP 100%${assistOn ? ' • ASSIST' : ''}`;
+    setHTML('hudSurfaceStatus', surf);
+
+    setText('hudLapCount', `${Math.min(player.lap, totalLaps)} / ${totalLaps}`);
+    setText('hudCurLap', formatLapTime(player.currentLapTime));
+    setText('hudLastLap', formatLapTime(player.lastLapTime));
+    setText('hudBestLap', formatLapTime(player.bestLapTime));
+
+    const standings = getCurrentStandings();
+    const rank = standings.findIndex(r => r.isPlayer) + 1;
+    setHTML('hudPosition', `${rank}<span class="text-lg sm:text-2xl text-red-200">/8</span>`);
+    if (gameState === 'RACING') {
+        rankCd -= 1 / 60;
+        if (rank < lastRank && rankCd <= 0) { showRaceBanner(`OVERTAKE! P${rank}`, 1400); rankCd = 1.5; }
+        lastRank = rank;
+    }
+
+    updateCornerWarning();
+    drawMinimap();
+}
+
+function updateCornerWarning() {
+    const el = $('cornerWarn'), txt = $('cornerWarnText');
+    let show = false;
+    if (gameState === 'RACING') {
+        const ahead = maxCurveAhead(player.z, 75);
+        if (ahead.mag > 2.4) {
+            const speedRatio = player.speed / player.maxSpeed;
+            const needed = cornerSpeedFactorAssist(ahead.mag);
+            const tooFast = speedRatio > needed + 0.04 && ahead.dist < 60;
+            const dir = ahead.signed > 0 ? 'right' : 'left';
+            const sev = ahead.mag >= 4.6 ? 3 : (ahead.mag >= 3.4 ? 2 : 1);
+            const arrow = dir === 'right' ? '›'.repeat(sev) : '‹'.repeat(sev);
+            const col = sev === 3 ? 'text-red-400' : (sev === 2 ? 'text-amber-300' : 'text-emerald-300');
+            const html = tooFast
+                ? `<span class="text-rose-400 brake-pulse inline-block">BRAKE!</span> <span class="${col}">${dir === 'left' ? arrow : ''} ${dir.toUpperCase()} ${dir === 'right' ? arrow : ''}</span>`
+                : `<span class="${col}">${dir === 'left' ? arrow : ''} ${dir.toUpperCase()} ${sev} ${dir === 'right' ? arrow : ''}</span>`;
+            setHTML('cornerWarnText', html);
+            show = true;
+        }
+    }
+    if (show !== cornerWarnVisible) {
+        cornerWarnVisible = show;
+        el.classList.toggle('opacity-0', !show);
+        el.classList.toggle('opacity-100', show);
+    }
+}
+
+function drawLeanGauge(leanDeg) {
+    const w = leanCanvas.width, h = leanCanvas.height;
+    leanCtx.clearRect(0, 0, w, h);
+    const cx = w / 2, cy = h - 8, r = 24;
+    leanCtx.beginPath(); leanCtx.arc(cx, cy, r, Math.PI * 1.12, Math.PI * 1.88);
+    leanCtx.strokeStyle = '#334155'; leanCtx.lineWidth = 6; leanCtx.lineCap = 'round'; leanCtx.stroke();
+    const start = Math.PI * 1.5, end = start + (leanDeg / 90) * (Math.PI * 0.5);
+    leanCtx.beginPath(); leanCtx.arc(cx, cy, r, Math.min(start, end), Math.max(start, end));
+    leanCtx.strokeStyle = Math.abs(leanDeg) >= 50 ? '#facc15' : '#ef4444'; leanCtx.lineWidth = 6; leanCtx.stroke();
+    leanCtx.save(); leanCtx.translate(cx, cy); leanCtx.rotate((leanDeg * Math.PI) / 180);
+    leanCtx.beginPath(); leanCtx.moveTo(0, 4); leanCtx.lineTo(0, -r - 3);
+    leanCtx.strokeStyle = '#fff'; leanCtx.lineWidth = 2.5; leanCtx.stroke(); leanCtx.restore();
+}
+
+function drawMinimap() {
+    const w = minimapCanvas.width, h = minimapCanvas.height;
+    minimapCtx.clearRect(0, 0, w, h);
+    if (!minimapPoints.length) return;
+    const pad = 12, dw = w - pad * 2, dh = h - pad * 2;
+    minimapCtx.beginPath();
+    for (let i = 0; i < minimapPoints.length; i += 4) {
+        const p = minimapPoints[i], px = pad + p.nx * dw, py = pad + p.ny * dh;
+        if (i === 0) minimapCtx.moveTo(px, py); else minimapCtx.lineTo(px, py);
+    }
+    minimapCtx.closePath();
+    minimapCtx.strokeStyle = 'rgba(148,163,184,0.45)'; minimapCtx.lineWidth = 5; minimapCtx.stroke();
+    minimapCtx.strokeStyle = '#e2e8f0'; minimapCtx.lineWidth = 2; minimapCtx.stroke();
+    const sf = minimapPoints[START_SEG] || minimapPoints[0];
+    minimapCtx.fillStyle = '#fff'; minimapCtx.fillRect(pad + sf.nx * dw - 3, pad + sf.ny * dh - 3, 6, 6);
+    for (const ai of aiRiders) {
+        const p = minimapPoints[Math.floor(ai.z / SEGMENT_LENGTH) % minimapPoints.length];
+        minimapCtx.beginPath(); minimapCtx.arc(pad + p.nx * dw, pad + p.ny * dh, 3.2, 0, Math.PI * 2);
+        minimapCtx.fillStyle = ai.team.primary; minimapCtx.fill();
+        minimapCtx.strokeStyle = '#0f172a'; minimapCtx.lineWidth = 1; minimapCtx.stroke();
+    }
+    const pp = minimapPoints[Math.floor(player.z / SEGMENT_LENGTH) % minimapPoints.length];
+    minimapCtx.beginPath(); minimapCtx.arc(pad + pp.nx * dw, pad + pp.ny * dh, 5, 0, Math.PI * 2);
+    minimapCtx.fillStyle = '#22ff66'; minimapCtx.fill();
+    minimapCtx.strokeStyle = '#fff'; minimapCtx.lineWidth = 1.5; minimapCtx.stroke();
+}
+
+/********************************************************************
+ * 9. RESULTS
+ ********************************************************************/
+function completeRace() {
+    gameState = 'FINISHED';
+    audio.silence();
+    cornerWarnVisible = false;
+    $('cornerWarn').classList.add('opacity-0');
+
+    const standings = getCurrentStandings();
+    const finishDist = finishDistance();
+    standings.forEach((r, idx) => {
+        if (!r.finished) {
+            const remaining = Math.max(200, finishDist - r.progress);
+            r.finishTime = raceClock + remaining / Math.max(r.speed, BASE_MAX_SPEED * 0.6) + idx * 0.01;
+        }
+    });
+    standings.sort((a, b) => a.finishTime - b.finishTime);
+
+    const rank = standings.findIndex(r => r.isPlayer) + 1;
+    const titleEl = $('finishTitle'), badgeEl = $('finishBadge');
+    if (rank === 1) {
+        titleEl.textContent = 'GRAND PRIX VICTORY!';
+        badgeEl.innerHTML = '<span class="motogp-unskew">🏆 P1 WINNER</span>';
+        badgeEl.className = 'motogp-skew bg-amber-400 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+    } else if (rank <= 3) {
+        titleEl.textContent = 'PODIUM FINISH!';
+        badgeEl.innerHTML = `<span class="motogp-unskew">🥈 P${rank} PODIUM</span>`;
+        badgeEl.className = 'motogp-skew bg-slate-200 text-slate-950 px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+    } else {
+        titleEl.textContent = 'CHEQUERED FLAG!';
+        badgeEl.innerHTML = `<span class="motogp-unskew">P${rank} / 8</span>`;
+        badgeEl.className = 'motogp-skew bg-red-600 text-white px-4 py-1.5 font-teko text-3xl font-bold uppercase';
+    }
+
+    // Championship points
+    const pts = POINTS_TABLE[rank - 1] || 0;
+    season.points += pts; season.races += 1;
+    if (rank === 1) season.wins += 1;
+    if (rank <= 3) season.podiums += 1;
+    lsSet('mgp_season', season);
+    $('resPoints').innerHTML = `+${pts} CHAMPIONSHIP POINTS &nbsp;•&nbsp; SEASON TOTAL: ${season.points} PTS`;
+
+    setText('resTotalTime', formatLapTime(player.finishTime));
+    setText('resBestLap', formatLapTime(player.bestLapTime));
+    setText('resTopSpeed', `${player.topSpeedRecorded} KM/H`);
+    setText('resMaxLean', `${player.maxLeanRecorded}°`);
+
+    const list = $('standingsList');
+    list.innerHTML = '';
+    const leader = standings[0].finishTime;
+    standings.forEach((r, idx) => {
+        const pos = idx + 1;
+        const gap = idx === 0 ? formatLapTime(r.finishTime) : `+${(r.finishTime - leader).toFixed(3)}s`;
+        const row = document.createElement('div');
+        row.className = `grid grid-cols-12 items-center px-3 py-2.5 ${r.isPlayer ? 'bg-red-600/25 font-bold text-white' : 'text-slate-300'}`;
+        row.innerHTML = `
+            <div class="col-span-2"><span class="font-teko text-xl w-6 inline-block text-center rounded ${pos === 1 ? 'bg-amber-400 text-black' : 'bg-slate-800 text-white'}">${pos}</span></div>
+            <div class="col-span-5 flex items-center gap-2">
+                <span class="w-1.5 h-5 rounded-sm" style="background:${r.team.primary}"></span>
+                <span class="font-teko text-lg px-1.5 bg-slate-800 rounded text-white">#${r.riderNum}</span>
+                <span>${r.riderName} ${r.isPlayer ? '<span class="text-[10px] text-amber-300 ml-1">(YOU)</span>' : ''}</span>
+            </div>
+            <div class="col-span-3 text-slate-400 truncate">${r.team.name}</div>
+            <div class="col-span-2 text-right font-mono">${gap}</div>`;
+        list.appendChild(row);
+    });
+    $('resultsScreen').classList.remove('hidden');
+}
+
+/********************************************************************
+ * 10. RENDERING
+ ********************************************************************/
+function project(p, camX, camY, camZ, w, h, roadWidth, hz) {
+    p.camera.x = (p.world.x || 0) - camX;
+    p.camera.y = (p.world.y || 0) - camY;
+    p.camera.z = (p.world.z || 0) - camZ;
+    const safeZ = Math.max(1, p.camera.z);
+    p.screen.scale = CAMERA_DEPTH / safeZ;
+    p.screen.x = Math.round((w / 2) + (p.screen.scale * p.camera.x * w / 2));
+    p.screen.y = Math.round(hz - (p.screen.scale * p.camera.y * h / 2));
+    p.screen.w = Math.round(p.screen.scale * roadWidth * w / 2);
+}
+
+function drawPolygon(x1, y1, x2, y2, x3, y3, x4, y4, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.lineTo(x4, y4); ctx.closePath(); ctx.fill();
+}
+
+function renderSkyAndMountains(w, h, hz) {
+    const sg = ctx.createLinearGradient(0, 0, 0, hz);
+    sg.addColorStop(0, '#0f2547'); sg.addColorStop(0.55, '#2563eb'); sg.addColorStop(1, '#93c5fd');
+    ctx.fillStyle = sg; ctx.fillRect(-20, -20, w + 40, hz + 40);
+
+    const sunX = ((w * 0.72 + skyOffset * 0.3) % (w + 200) + (w + 200)) % (w + 200) - 100;
+    const sun = ctx.createRadialGradient(sunX, hz * 0.35, 8, sunX, hz * 0.35, 130);
+    sun.addColorStop(0, 'rgba(255,255,240,0.95)'); sun.addColorStop(0.3, 'rgba(253,224,71,0.35)'); sun.addColorStop(1, 'rgba(253,224,71,0)');
+    ctx.fillStyle = sun; ctx.fillRect(0, 0, w, hz);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    for (let i = 0; i < 7; i++) {
+        const cx = ((i * 260 + skyOffset * 0.6) % (w + 300) + (w + 300)) % (w + 300) - 150;
+        const cy = hz * (0.22 + (i % 3) * 0.14);
+        ctx.beginPath(); ctx.ellipse(cx, cy, 85, 16, 0, 0, Math.PI * 2); ctx.ellipse(cx + 35, cy - 8, 55, 14, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    ctx.fillStyle = '#1e3a5f';
+    ctx.beginPath(); ctx.moveTo(-20, hz + 5);
+    for (let x = -20; x <= w + 80; x += 60) {
+        const wx = x - skyOffset;
+        ctx.lineTo(x, hz - (Math.sin(wx * 0.004) * 52 + Math.cos(wx * 0.009) * 28 + 55));
+    }
+    ctx.lineTo(w + 80, hz + 5); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#14532d';
+    ctx.beginPath(); ctx.moveTo(-20, hz + 5);
+    for (let x = -20; x <= w + 60; x += 45) {
+        const wx = x - hillOffset;
+        ctx.lineTo(x, hz - (Math.sin(wx * 0.007) * 24 + Math.cos(wx * 0.015) * 14 + 24));
+    }
+    ctx.lineTo(w + 60, hz + 5); ctx.closePath(); ctx.fill();
+}
+
+function renderSegmentGround(w, seg) {
+    const p1 = seg.p1.screen, p2 = seg.p2.screen;
+    const dark = seg.color === 'dark';
+
+    ctx.fillStyle = dark ? '#15602c' : '#196f34';
+    ctx.fillRect(-30, p2.y, w + 60, p1.y - p2.y);
+
+    if (Math.abs(seg.curve) > 2.2) {
+        const g1 = p1.w * 2.1, g2 = p2.w * 2.1;
+        drawPolygon(p1.x - g1, p1.y, p1.x + g1, p1.y, p2.x + g2, p2.y, p2.x - g2, p2.y, dark ? '#c2b280' : '#cbbd8d');
+    }
+
+    const k1 = p1.w * 1.18, k2 = p2.w * 1.18;
+    const kc = dark ? '#e10600' : '#f8fafc';
+    drawPolygon(p1.x - k1, p1.y, p1.x - p1.w, p1.y, p2.x - p2.w, p2.y, p2.x - k2, p2.y, kc);
+    drawPolygon(p1.x + p1.w, p1.y, p1.x + k1, p1.y, p2.x + k2, p2.y, p2.x + p2.w, p2.y, kc);
+
+    const t1 = p1.w * 1.25, t2 = p2.w * 1.25, tc = dark ? '#059669' : '#10b981';
+    drawPolygon(p1.x - t1, p1.y, p1.x - k1, p1.y, p2.x - k2, p2.y, p2.x - t2, p2.y, tc);
+    drawPolygon(p1.x + k1, p1.y, p1.x + t1, p1.y, p2.x + t2, p2.y, p2.x + k2, p2.y, tc);
+
+    drawPolygon(p1.x - p1.w, p1.y, p1.x + p1.w, p1.y, p2.x + p2.w, p2.y, p2.x - p2.w, p2.y, dark ? '#262b36' : '#2d3340');
+    const gw1 = p1.w * 0.42, gw2 = p2.w * 0.42;
+    drawPolygon(p1.x - gw1, p1.y, p1.x + gw1, p1.y, p2.x + gw2, p2.y, p2.x - gw2, p2.y, dark ? '#1e222b' : '#232833');
+
+    const l1 = Math.max(2, p1.w * 0.03), l2 = Math.max(1, p2.w * 0.03);
+    drawPolygon(p1.x - p1.w, p1.y, p1.x - p1.w + l1, p1.y, p2.x - p2.w + l2, p2.y, p2.x - p2.w, p2.y, '#e2e8f0');
+    drawPolygon(p1.x + p1.w - l1, p1.y, p1.x + p1.w, p1.y, p2.x + p2.w, p2.y, p2.x + p2.w - l2, p2.y, '#e2e8f0');
+
+    // Grid boxes on the pit straight
+    if (seg.index >= 8 && seg.index <= 22 && seg.index % 2 === 0 && seg.index !== START_SEG) {
+        const bw1 = p1.w * 0.03, bw2 = p2.w * 0.03;
+        drawPolygon(p1.x - p1.w * 0.74, p1.y, p1.x - p1.w * 0.74 + bw1, p1.y, p2.x - p2.w * 0.74 + bw2, p2.y, p2.x - p2.w * 0.74, p2.y, 'rgba(255,255,255,0.55)');
+        drawPolygon(p1.x + p1.w * 0.74, p1.y, p1.x + p1.w * 0.74 + bw1, p1.y, p2.x + p2.w * 0.74 + bw2, p2.y, p2.x + p2.w * 0.74, p2.y, 'rgba(255,255,255,0.55)');
+    }
+
+    if (seg.index === START_SEG || seg.index === START_SEG + 1) {
+        const n = 10;
+        for (let c = 0; c < n; c++) {
+            const f1 = -1 + (c / n) * 2, f2 = -1 + ((c + 1) / n) * 2;
+            drawPolygon(p1.x + p1.w * f1, p1.y, p1.x + p1.w * f2, p1.y, p2.x + p2.w * f2, p2.y, p2.x + p2.w * f1, p2.y,
+                (c + seg.index) % 2 === 0 ? '#fff' : '#090b10');
+        }
+    }
+
+    // Distance haze
+    if (seg.fog > 0.02) {
+        ctx.fillStyle = `rgba(147,197,253,${seg.fog})`;
+        ctx.fillRect(-30, p2.y, w + 60, p1.y - p2.y + 1);
+    }
+}
+
+function renderTracksideSprite(w, h, seg, sprite) {
+    const roadW = seg.p1.screen.w;
+    const sx = seg.p1.screen.x + sprite.offset * roadW;
+    const sy = seg.p1.screen.y;
+    if (sy <= seg.clip && sprite.type !== 'gantry') return;
+    if (sx < -roadW * 2 || sx > w + roadW * 2) return;
+
+    ctx.save();
+    ctx.globalAlpha = 1 - seg.fog * 0.9;
+    if (seg.clip < h) { ctx.beginPath(); ctx.rect(0, 0, w, seg.clip); ctx.clip(); }
+
+    if (sprite.type === 'tree' || sprite.type === 'cypress') {
+        const tw = Math.max(4, roadW * (sprite.type === 'cypress' ? 0.25 : 0.48));
+        const th = Math.max(8, tw * (sprite.type === 'cypress' ? 3.2 : 1.75));
+        ctx.fillStyle = '#451a03'; ctx.fillRect(sx - tw * 0.12, sy - th * 0.25, tw * 0.24, th * 0.25);
+        ctx.fillStyle = sprite.type === 'cypress' ? '#064e3b' : '#14532d';
+        ctx.beginPath(); ctx.ellipse(sx, sy - th * 0.6, tw * 0.5, th * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+    } else if (sprite.type === 'billboard') {
+        const bw = Math.max(12, roadW * 0.68), bh = bw * 0.34;
+        ctx.fillStyle = '#475569';
+        ctx.fillRect(sx - bw * 0.38, sy - bh * 0.3, bw * 0.06, bh * 0.3);
+        ctx.fillRect(sx + bw * 0.32, sy - bh * 0.3, bw * 0.06, bh * 0.3);
+        ctx.fillStyle = '#e10600'; ctx.fillRect(sx - bw / 2, sy - bh * 1.25, bw, bh);
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, bw * 0.03); ctx.strokeRect(sx - bw / 2, sy - bh * 1.25, bw, bh);
+        if (bw > 35) {
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(bh * 0.52)}px "Chakra Petch", sans-serif`; ctx.textAlign = 'center';
+            ctx.fillText(sprite.label || 'MotoGP', sx, sy - bh * 0.62);
+        }
+    } else if (sprite.type === 'chevron') {
+        const cw = Math.max(8, roadW * 0.25), ch = cw * 0.65;
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(sx - cw / 2, sy - ch, cw, ch);
+        ctx.fillStyle = '#facc15'; ctx.font = `bold ${Math.round(ch * 0.75)}px sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText(sprite.dir > 0 ? '>>>' : '<<<', sx, sy - ch * 0.22);
+    } else if (sprite.type === 'grandstand') {
+        const gw = Math.max(20, roadW * 1.15), gh = gw * 0.52;
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(sx - gw / 2, sy - gh, gw, gh);
+        ctx.fillStyle = '#e10600'; ctx.fillRect(sx - gw * 0.52, sy - gh * 1.1, gw * 1.04, gh * 0.14);
+        if (gw > 35) {
+            const cols = ['#ef4444', '#facc15', '#3b82f6', '#ffffff', '#22c55e'];
+            for (let r = 0; r < 3; r++) { ctx.fillStyle = cols[(seg.index + r) % cols.length]; ctx.fillRect(sx - gw * 0.44, sy - gh * (0.28 + r * 0.24), gw * 0.88, gh * 0.12); }
+        }
+    } else if (sprite.type === 'pitbuilding') {
+        const pw = Math.max(16, roadW * 0.85), ph = pw * 0.65;
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(sx - pw / 2, sy - ph, pw, ph);
+        ctx.fillStyle = '#38bdf8'; ctx.fillRect(sx - pw * 0.44, sy - ph * 0.78, pw * 0.88, ph * 0.28);
+    } else if (sprite.type === 'gantry') {
+        const leftX = seg.p1.screen.x - roadW * 1.25, rightX = seg.p1.screen.x + roadW * 1.25, spanW = rightX - leftX;
+        const bridgeH = Math.max(16, roadW * 0.78), bannerH = bridgeH * 0.34, pillarW = Math.max(4, roadW * 0.1);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(leftX - pillarW, sy - bridgeH, pillarW, bridgeH);
+        ctx.fillRect(rightX, sy - bridgeH, pillarW, bridgeH);
+        ctx.fillStyle = '#090b10'; ctx.fillRect(leftX - pillarW, sy - bridgeH, spanW + pillarW * 2, bannerH);
+        ctx.fillStyle = '#e10600'; ctx.fillRect(leftX - pillarW, sy - bridgeH, spanW + pillarW * 2, bannerH * 0.22);
+        if (spanW > 90) {
+            ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.max(9, Math.round(bannerH * 0.45))}px "Chakra Petch", sans-serif`; ctx.textAlign = 'center';
+            ctx.fillText(sprite.text || 'MotoGP™', seg.p1.screen.x, sy - bridgeH + bannerH * 0.7);
+        }
+    }
+    ctx.restore();
+}
+
+function drawMotorcycleAndRider(screenX, screenY, scale, leanDeg, team, riderNum, isPlayer, clipY) {
+    if (screenY <= 10 || scale <= 0.04) return;
+    ctx.save();
+    if (clipY !== undefined) { ctx.beginPath(); ctx.rect(0, 0, canvas.width, clipY); ctx.clip(); }
+    ctx.translate(screenX, screenY);
+    ctx.scale(scale, scale);
+
+    const leanNorm = leanDeg / 63;
+    ctx.fillStyle = 'rgba(0,0,0,0.48)';
+    ctx.beginPath(); ctx.ellipse(leanNorm * 34, -4, 46 + Math.abs(leanNorm) * 18, 13, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.rotate((leanDeg * Math.PI / 180) * 0.85);
+
+    // Rear tyre
+    ctx.fillStyle = '#111318'; ctx.beginPath(); ctx.roundRect(-24, -66, 48, 66, 20); ctx.fill();
+    ctx.strokeStyle = '#272b36'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(-19, -62, 38, 58, 16); ctx.stroke();
+    // Spinning tread marks give a feeling of speed
+    const spin = isPlayer ? (player.wheelRotation * 3) % 1 : ((performance.now() * 0.004) % 1);
+    ctx.strokeStyle = 'rgba(148,163,184,0.28)'; ctx.lineWidth = 2;
+    for (let t = 0; t < 4; t++) {
+        const ty = -60 + ((t + spin) % 4) * 14;
+        ctx.beginPath(); ctx.moveTo(-14, ty); ctx.lineTo(14, ty); ctx.stroke();
+    }
+
+    ctx.fillStyle = '#475569'; ctx.fillRect(-28, -42, 7, 22); ctx.fillRect(21, -42, 7, 22);
+
+    ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(22, -55, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#090b10'; ctx.beginPath(); ctx.arc(22, -55, 3, 0, Math.PI * 2); ctx.fill();
+
+    if (isPlayer && (player.exhaustFlame > 0.1 || player.isBoosting)) {
+        const fh = player.isBoosting ? 28 + Math.random() * 18 : 18 * player.exhaustFlame;
+        ctx.fillStyle = player.isBoosting ? '#38bdf8' : '#f97316';
+        ctx.beginPath(); ctx.moveTo(17, -55); ctx.lineTo(22, -55 - fh); ctx.lineTo(27, -55); ctx.closePath(); ctx.fill();
+    }
+
+    ctx.fillStyle = team.primary;
+    ctx.beginPath(); ctx.moveTo(-34, -52); ctx.lineTo(-42, -98); ctx.lineTo(-22, -132); ctx.lineTo(22, -132); ctx.lineTo(42, -98); ctx.lineTo(34, -52); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = team.secondary;
+    ctx.beginPath(); ctx.moveTo(-26, -54); ctx.lineTo(-32, -92); ctx.lineTo(32, -92); ctx.lineTo(26, -54); ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#111318';
+    ctx.beginPath(); ctx.moveTo(-40, -98); ctx.lineTo(-55, -92); ctx.lineTo(-52, -84); ctx.lineTo(-38, -88); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(40, -98); ctx.lineTo(55, -92); ctx.lineTo(52, -84); ctx.lineTo(38, -88); ctx.closePath(); ctx.fill();
+
+    const hangOffX = leanNorm * 28;
+    ctx.save();
+    ctx.translate(hangOffX, 0);
+    if (Math.abs(leanDeg) > 12) {
+        const ks = Math.sign(leanDeg), ke = Math.min(1, Math.abs(leanDeg) / 50);
+        ctx.fillStyle = team.suitColor;
+        ctx.beginPath(); ctx.moveTo(ks * 10, -72); ctx.lineTo(ks * (24 + ke * 24), -44 + ke * 12); ctx.lineTo(ks * 16, -42); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = Math.abs(leanDeg) >= 50 ? '#fde047' : team.accent;
+        ctx.beginPath(); ctx.arc(ks * (24 + ke * 24), -44 + ke * 12, 6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = team.suitColor; ctx.beginPath(); ctx.ellipse(0, -96, 26, 30, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = team.accent; ctx.fillRect(-22, -108, 44, 7);
+    ctx.fillStyle = '#fff'; ctx.fillRect(-5, -118, 10, 38);
+    ctx.strokeStyle = team.suitColor; ctx.lineWidth = 10; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-22, -108); ctx.lineTo(-34 - hangOffX * 0.4, -120); ctx.moveTo(22, -108); ctx.lineTo(34 - hangOffX * 0.4, -120); ctx.stroke();
+    ctx.fillStyle = team.helmetColor; ctx.beginPath(); ctx.arc(leanNorm * 6, -124, 17, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(leanNorm * 6 - 13, -131, 26, 8);
+    ctx.fillStyle = '#fff'; ctx.fillRect(leanNorm * 6 - 4, -140, 8, 16);
+    ctx.restore();
+
+    ctx.fillStyle = team.primary; ctx.beginPath(); ctx.roundRect(-17, -86, 34, 28, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 17px "Teko", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(riderNum, 0, -66);
+
+    const braking = isPlayer && ctl.down && gameState !== 'COOLDOWN';
+    ctx.fillStyle = braking ? '#ff0000' : '#ef4444';
+    if (braking) { ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 14; }
+    ctx.beginPath(); ctx.arc(0, -54, braking ? 5 : 3, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+}
+
+function renderScene() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    if (!segments.length) return;
+
+    // Camera layout: horizon, and camera height chosen so the rider's road position lands above the HUD
+    const hz = h * 0.46;
+    const bottomMargin = w < 640 ? 150 : 118;
+    const camH = ((h - bottomMargin - hz) / (h / 2)) * CAM_BACK / CAMERA_DEPTH;
+
+    const camZ = (player.z - CAM_BACK + trackLength) % trackLength;
+    const baseSegment = segments[Math.floor(camZ / SEGMENT_LENGTH) % segments.length];
+    const basePercent = (camZ % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+    const pSeg = segAt(player.z);
+    const playerY = easeInOut(pSeg.p1.world.y, pSeg.p2.world.y, (player.z % SEGMENT_LENGTH) / SEGMENT_LENGTH);
+
+    const cameraX = player.x * ROAD_WIDTH;
+    const cameraY = playerY + camH;
+
+    ctx.save();
+    // Camera shake (kerbs, gravel, contact)
+    if (player.shake > 0.05 && gameState !== 'PAUSED') {
+        ctx.translate((Math.random() - 0.5) * player.shake, (Math.random() - 0.5) * player.shake);
+    }
+    if (gyroCamEnabled && isRaceState()) {
+        const roll = (-player.leanAngle * 0.14 * Math.PI) / 180;
+        ctx.translate(w / 2, h / 2); ctx.rotate(roll); ctx.translate(-w / 2, -h / 2);
+    }
+
+    renderSkyAndMountains(w, h, hz);
+    ctx.fillStyle = '#15602c'; ctx.fillRect(-30, hz, w + 60, h - hz + 30);
+
+    let maxy = h + 120;
+    let x = 0, dx = -(baseSegment.curve * basePercent);
+    const visible = [];
+
+    for (let n = 0; n < DRAW_DISTANCE; n++) {
+        const seg = segments[(baseSegment.index + n) % segments.length];
+        const loopOffset = seg.index < baseSegment.index ? trackLength : 0;
+        project(seg.p1, cameraX - x, cameraY, camZ - loopOffset, w, h, ROAD_WIDTH, hz);
+        project(seg.p2, cameraX - x - dx, cameraY, camZ - loopOffset, w, h, ROAD_WIDTH, hz);
+        x += dx; dx += seg.curve;
+
+        seg.clip = maxy;
+        seg.fog = clamp(Math.pow(n / DRAW_DISTANCE, 2.3) * 0.9, 0, 0.9);
+        visible.push(seg);
+
+        if (seg.p1.camera.z <= CAMERA_DEPTH || seg.p2.screen.y >= seg.p1.screen.y || seg.p2.screen.y >= maxy) continue;
+        renderSegmentGround(w, seg);
+        maxy = seg.p2.screen.y;
+    }
+
+    // Scale reference: how wide the road is (px) at the rider's own depth
+    const playerScale = clamp(w / 960, 0.8, 1.4);
+    const roadHalfAtPlayer = (CAMERA_DEPTH / CAM_BACK) * ROAD_WIDTH * w / 2;
+
+    for (let n = visible.length - 1; n >= 1; n--) {
+        const seg = visible[n];
+        for (let s = 0; s < seg.sprites.length; s++) renderTracksideSprite(w, h, seg, seg.sprites[s]);
+
+        for (let r = 0; r < seg.riders.length; r++) {
+            const ai = seg.riders[r];
+            const perc = (ai.z % SEGMENT_LENGTH) / SEGMENT_LENGTH;
+            const ix = seg.p1.screen.x + (seg.p2.screen.x - seg.p1.screen.x) * perc;
+            const iy = seg.p1.screen.y + (seg.p2.screen.y - seg.p1.screen.y) * perc;
+            const iw = seg.p1.screen.w + (seg.p2.screen.w - seg.p1.screen.w) * perc;
+            const ax = ix + ai.x * iw;
+            const bikeScale = (iw / roadHalfAtPlayer) * playerScale;
+
+            ctx.save();
+            ctx.globalAlpha = 1 - seg.fog * 0.7;
+            drawMotorcycleAndRider(ax, iy, bikeScale, ai.leanAngle, ai.team, ai.riderNum, false, seg.clip);
+            ctx.restore();
+
+            if (n < 40 && bikeScale > 0.22 && iy <= seg.clip) {
+                const tagY = iy - 155 * bikeScale;
+                ctx.save();
+                ctx.fillStyle = 'rgba(9,11,16,0.85)'; ctx.fillRect(ax - 34, tagY - 14, 68, 16);
+                ctx.fillStyle = ai.team.primary; ctx.fillRect(ax - 34, tagY - 14, 5, 16);
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 10px "Chakra Petch", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(`#${ai.riderNum} ${ai.riderName.slice(0, 3)}`, ax + 2, tagY - 3);
+                ctx.restore();
+            }
+        }
+    }
+
+    // Speed lines
+    const speedRatio = player.speed / player.maxSpeed;
+    if (speedRatio > 0.78) {
+        const k = (speedRatio - 0.78) / 0.22;
+        ctx.strokeStyle = player.isBoosting ? `rgba(56,189,248,${k * 0.45})` : `rgba(255,255,255,${k * 0.28})`;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI + Math.PI;
+            const r1 = Math.min(w, h) * (0.32 + ((Date.now() * 0.004 + i) % 0.25));
+            const r2 = r1 + 95;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 + Math.cos(angle) * r1, h * 0.55 + Math.sin(angle) * r1);
+            ctx.lineTo(w / 2 + Math.cos(angle) * r2, h * 0.55 + Math.sin(angle) * r2);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+
+    // Player bike (screen-fixed at the road position the camera is locked to)
+    const bikeBaseY = h - bottomMargin + 6 + (player.onKerb ? Math.sin(Date.now() * 0.06) * 3.5 : 0);
+    drawMotorcycleAndRider(w / 2, bikeBaseY, playerScale, player.leanAngle, player.team, player.team.riderNum, true);
+
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const a = Math.max(0, p.life / p.maxLife);
+        const px = w / 2 + p.x * playerScale, py = bikeBaseY + p.y * playerScale;
+        if (p.type === 'spark') {
+            ctx.strokeStyle = p.color; ctx.globalAlpha = a; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - p.vx * 0.025, py - p.vy * 0.025); ctx.stroke();
+        } else {
+            ctx.fillStyle = p.color; ctx.globalAlpha = a;
+            ctx.beginPath(); ctx.arc(px, py, p.size * (1.2 - a * 0.5), 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Red vignette when hitting gravel/barrier
+    if (player.offRoad || player.shake > 6) {
+        const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
+        g.addColorStop(0, 'rgba(225,6,0,0)'); g.addColorStop(1, 'rgba(225,6,0,0.28)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    }
+}
+
+/********************************************************************
+ * 11. EVENTS, FLOW CONTROL, MAIN LOOP
+ ********************************************************************/
+function resizeCanvas() {
+    // Cap internal resolution for smooth framerate on big monitors
+    const scale = Math.min(1, 1280 / window.innerWidth);
+    canvas.width = Math.round(window.innerWidth * scale);
+    canvas.height = Math.round(window.innerHeight * scale);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const GAME_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+window.addEventListener('keydown', (e) => {
+    if (isRaceState() && GAME_KEYS.includes(e.code)) e.preventDefault();
+    if (e.repeat) { /* keep state, ignore repeats for toggles */ }
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = true;
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = true;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+    if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.boost = true;
+    if (e.repeat) return;
+    if (e.code === 'KeyM') toggleAudioMute();
+    if (e.code === 'KeyC') toggleGyroCam();
+    if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+    if (e.code === 'Enter' && gameState === 'MENU') launchGrandPrix();
+    if (e.code === 'KeyR' && gameState === 'FINISHED') launchGrandPrix();
+});
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.down = false;
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.boost = false;
+});
+function releaseAllKeys() { for (const k in keys) keys[k] = false; }
+window.addEventListener('blur', () => { releaseAllKeys(); if (gameState === 'RACING' || gameState === 'COUNTDOWN') togglePause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (gameState === 'RACING' || gameState === 'COUNTDOWN')) togglePause(); });
+
+// Touch / mouse on-screen buttons
+function bindTouchButton(id, keyName) {
+    const btn = $(id);
+    const on = (e) => { e.preventDefault(); audio.init(); audio.resume(); keys[keyName] = true; btn.classList.add('active'); };
+    const off = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('active'); };
+    btn.addEventListener('touchstart', on, { passive: false });
+    btn.addEventListener('touchend', off, { passive: false });
+    btn.addEventListener('touchcancel', off, { passive: false });
+    btn.addEventListener('mousedown', on);
+    btn.addEventListener('mouseup', off);
+    btn.addEventListener('mouseleave', off);
+}
+bindTouchButton('btnLeft', 'left'); bindTouchButton('btnRight', 'right');
+bindTouchButton('btnGas', 'up'); bindTouchButton('btnBrake', 'down'); bindTouchButton('btnBoost', 'boost');
+if (('ontouchstart' in window) || navigator.maxTouchPoints > 0) $('touchControls').classList.remove('hidden');
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// Menu options
+document.querySelectorAll('.diff-btn').forEach(btn => btn.addEventListener('click', () => {
+    selectedDifficulty = btn.dataset.diff; lsSet('mgp_diff', selectedDifficulty);
+    audio.playBeep(580, 0.07); refreshMenuInfo();
+}));
+document.querySelectorAll('.lap-btn').forEach(btn => btn.addEventListener('click', () => {
+    totalLaps = parseInt(btn.dataset.laps, 10); lsSet('mgp_laps', totalLaps);
+    audio.playBeep(620, 0.07); refreshMenuInfo();
+}));
+$('btnAssist').addEventListener('click', () => {
+    assistOn = !assistOn; lsSet('mgp_assist', assistOn); audio.playBeep(700, 0.07); refreshMenuInfo();
+});
+$('btnResetSeason').addEventListener('click', () => {
+    season = { points: 0, races: 0, wins: 0, podiums: 0 }; lsSet('mgp_season', season);
+    trackRecord = null; lsSet('mgp_record', null); refreshMenuInfo();
+});
+
+function toggleAudioMute() {
+    audio.init();
+    audio.isMuted = !audio.isMuted;
+    $('audioIcon').className = audio.isMuted ? 'fa-solid fa-volume-xmark text-rose-500' : 'fa-solid fa-volume-high text-emerald-400';
+}
+function toggleGyroCam() {
+    gyroCamEnabled = !gyroCamEnabled;
+    $('camModeLabel').textContent = `GYRO CAM: ${gyroCamEnabled ? 'ON' : 'OFF'}`;
+}
+$('btnAudioToggle').addEventListener('click', toggleAudioMute);
+$('btnCameraToggle').addEventListener('click', toggleGyroCam);
+
+function togglePause() {
+    if (gameState === 'PAUSED') {
+        gameState = stateBeforePause;
+        $('pauseScreen').classList.add('hidden');
+        lastFrameTime = performance.now();
+    } else if (gameState === 'RACING' || gameState === 'COUNTDOWN' || gameState === 'COOLDOWN') {
+        stateBeforePause = gameState;
+        gameState = 'PAUSED';
+        releaseAllKeys();
+        audio.silence();
+        $('pauseScreen').classList.remove('hidden');
+    }
+}
+$('btnPause').addEventListener('click', togglePause);
+$('btnResume').addEventListener('click', togglePause);
+$('btnPauseRestart').addEventListener('click', () => { $('pauseScreen').classList.add('hidden'); launchGrandPrix(); });
+$('btnPauseQuit').addEventListener('click', () => { $('pauseScreen').classList.add('hidden'); returnToMenu(); });
+
+function returnToMenu() {
+    gameState = 'MENU';
+    audio.silence();
+    clearRiderBuckets();
+    $('cornerWarn').classList.add('opacity-0'); cornerWarnVisible = false;
+    $('hudOverlay').classList.add('hidden');
+    $('resultsScreen').classList.add('hidden');
+    $('startScreen').classList.remove('hidden');
+    refreshMenuInfo();
+}
+$('btnChangeBike').addEventListener('click', returnToMenu);
+
+function launchGrandPrix() {
+    audio.init(); audio.resume();
+    releaseAllKeys();
+    setupGrid();
+    $('startLightsPanel').classList.remove('opacity-0');
+    document.querySelectorAll('.start-light').forEach(l => {
+        l.className = 'start-light w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-800 border-2 border-slate-600 shadow-inner';
+    });
+    countdownTimer = 0; countdownStep = 0;
+    gameState = 'COUNTDOWN';
+    $('startScreen').classList.add('hidden');
+    $('resultsScreen').classList.add('hidden');
+    $('pauseScreen').classList.add('hidden');
+    $('hudOverlay').classList.remove('hidden');
+    showRaceBanner('HOLD THROTTLE TO REV — RELEASE AT LIGHTS OUT!', 3200);
+}
+$('btnStartRace').addEventListener('click', launchGrandPrix);
+$('btnRestartRace').addEventListener('click', launchGrandPrix);
+
+let lastFrameTime = performance.now();
+function gameLoop(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - lastFrameTime) / 1000));
+    lastFrameTime = now;
+
+    if (gameState === 'MENU') {
+        // Attract mode: cruise the circuit behind the menu
+        player.z = (player.z + BASE_MAX_SPEED * 0.42 * dt) % trackLength;
+        player.totalDistance = player.z;
+        const seg = segAt(player.z);
+        player.leanAngle += (seg.curve * 7.5 - player.leanAngle) * 4 * dt;
+        player.x += (0 - player.x) * Math.min(1, 2 * dt);
+        skyOffset = (skyOffset - seg.curve * 0.3) % 1200;
+        hillOffset = (hillOffset - seg.curve * 0.6) % 1200;
+    } else if (gameState !== 'PAUSED' && gameState !== 'FINISHED') {
+        updatePhysics(dt);
+    }
+
+    renderScene();
+    requestAnimationFrame(gameLoop);
+}
+
+window.onload = function () {
+    buildCircuit();
+    renderTeamCards();
+    refreshMenuInfo();
+    setupGrid();
+    requestAnimationFrame(gameLoop);
+};
+</script>
+</body>
+</html>
